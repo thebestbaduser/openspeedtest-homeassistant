@@ -119,10 +119,10 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             command.append("--no-submit")
 
         if server_id := data.get(CONF_SERVER_ID):
-            command.extend(["--server", str(server_id)])
+            command.extend(["--server", str(int(server_id))])
 
-        threads = data.get(CONF_THREADS, DEFAULT_THREADS)
-        duration = data.get(CONF_DURATION, DEFAULT_DURATION)
+        threads = int(data.get(CONF_THREADS, DEFAULT_THREADS))
+        duration = int(data.get(CONF_DURATION, DEFAULT_DURATION))
         command.extend(["--threads", str(threads), "--duration", str(duration)])
 
         if api_key := data.get(CONF_API_KEY):

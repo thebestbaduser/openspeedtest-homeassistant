@@ -35,6 +35,20 @@ from .installer import async_install_cli
 _LOGGER = logging.getLogger(__name__)
 
 
+def _normalize_int(value: Any, default: int) -> int:
+    """Cast NumberSelector values (often floats) to int."""
+    if value is None:
+        return default
+    return int(value)
+
+
+def _normalize_optional_int(value: Any) -> int | None:
+    """Cast optional numeric config values to int."""
+    if value is None:
+        return None
+    return int(value)
+
+
 async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, str]:
     """Validate that the CLI binary exists and responds."""
     errors: dict[str, str] = {}
@@ -169,12 +183,18 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
                     title="OpenSpeedTest CLI",
                     data={
                         CONF_BINARY_PATH: binary_path,
-                        CONF_SCAN_INTERVAL: user_input.get(
-                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        CONF_SCAN_INTERVAL: _normalize_int(
+                            user_input.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
                         ),
-                        CONF_THREADS: user_input.get(CONF_THREADS, DEFAULT_THREADS),
-                        CONF_DURATION: user_input.get(CONF_DURATION, DEFAULT_DURATION),
-                        CONF_SERVER_ID: user_input.get(CONF_SERVER_ID),
+                        CONF_THREADS: _normalize_int(
+                            user_input.get(CONF_THREADS), DEFAULT_THREADS
+                        ),
+                        CONF_DURATION: _normalize_int(
+                            user_input.get(CONF_DURATION), DEFAULT_DURATION
+                        ),
+                        CONF_SERVER_ID: _normalize_optional_int(
+                            user_input.get(CONF_SERVER_ID)
+                        ),
                         CONF_SUBMIT_RESULTS: user_input.get(
                             CONF_SUBMIT_RESULTS, False
                         ),
@@ -270,6 +290,19 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
 
             if not user_input.get(CONF_API_KEY):
                 user_input[CONF_API_KEY] = None
+
+            user_input[CONF_SCAN_INTERVAL] = _normalize_int(
+                user_input.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
+            )
+            user_input[CONF_THREADS] = _normalize_int(
+                user_input.get(CONF_THREADS), DEFAULT_THREADS
+            )
+            user_input[CONF_DURATION] = _normalize_int(
+                user_input.get(CONF_DURATION), DEFAULT_DURATION
+            )
+            user_input[CONF_SERVER_ID] = _normalize_optional_int(
+                user_input.get(CONF_SERVER_ID)
+            )
 
             return self.async_create_entry(title="", data=user_input)
 
