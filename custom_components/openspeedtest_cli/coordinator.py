@@ -14,13 +14,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    get_recommended_cli_path,
     CONF_API_KEY,
     CONF_BINARY_PATH,
     CONF_DURATION,
     CONF_SERVER_ID,
     CONF_SUBMIT_RESULTS,
     CONF_THREADS,
-    DEFAULT_BINARY_PATH,
     DEFAULT_DURATION,
     DEFAULT_THREADS,
     DOMAIN,
@@ -109,7 +109,10 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
     def _build_command(self) -> list[str]:
         """Build CLI command from config entry."""
         data = {**self.config_entry.data, **self.config_entry.options}
-        binary = data.get(CONF_BINARY_PATH, DEFAULT_BINARY_PATH)
+        binary = data.get(
+            CONF_BINARY_PATH,
+            get_recommended_cli_path(self.hass.config.config_dir),
+        )
         command = [binary]
 
         if not data.get(CONF_SUBMIT_RESULTS, False):

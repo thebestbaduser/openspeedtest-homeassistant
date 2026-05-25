@@ -3,9 +3,10 @@
     "step": {
       "user": {
         "title": "OpenSpeedTest CLI",
-        "description": "Настройка замеров скорости через утилиту OpenSpeedTest CLI.",
+        "description": "Настройка замеров скорости через OpenSpeedTest CLI. Для Home Assistant Container и HA OS храните CLI в директории config ({config_path}) — она сохраняется при обновлении контейнера.",
         "data": {
           "binary_path": "Путь к openspeedtest-cli",
+          "install_cli": "Скачать CLI в директорию config",
           "scan_interval": "Интервал автоматических тестов (секунды)",
           "server_id": "ID сервера (необязательно, иначе автовыбор)",
           "threads": "Количество потоков",
@@ -18,7 +19,9 @@
     "error": {
       "not_found": "CLI не найден по указанному пути",
       "invalid": "Указанный файл не похож на openspeedtest-cli",
-      "timeout": "Превышено время ожидания при проверке CLI"
+      "timeout": "Превышено время ожидания при проверке CLI",
+      "download_failed": "Не удалось скачать openspeedtest-cli",
+      "invalid_download": "Скачанный файл не является скриптом openspeedtest-cli"
     },
     "abort": {
       "already_configured": "Этот CLI уже настроен"

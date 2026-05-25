@@ -3,9 +3,10 @@
     "step": {
       "user": {
         "title": "OpenSpeedTest CLI",
-        "description": "Configure speed tests via the OpenSpeedTest CLI tool.",
+        "description": "Configure speed tests via the OpenSpeedTest CLI tool. For Home Assistant Container and HA OS, keep the CLI in the config directory ({config_path}) so it survives container updates.",
         "data": {
           "binary_path": "Path to openspeedtest-cli",
+          "install_cli": "Download CLI to the config directory",
           "scan_interval": "Automatic test interval (seconds)",
           "server_id": "Server ID (optional, auto-select if empty)",
           "threads": "Number of test threads",
@@ -18,7 +19,9 @@
     "error": {
       "not_found": "CLI binary not found at the specified path",
       "invalid": "The specified file does not appear to be openspeedtest-cli",
-      "timeout": "Timed out while validating the CLI binary"
+      "timeout": "Timed out while validating the CLI binary",
+      "download_failed": "Failed to download openspeedtest-cli",
+      "invalid_download": "Downloaded file is not a valid openspeedtest-cli script"
     },
     "abort": {
       "already_configured": "This CLI binary is already configured"
