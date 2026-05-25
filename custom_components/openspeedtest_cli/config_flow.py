@@ -34,6 +34,55 @@ from .installer import async_install_cli
 
 _LOGGER = logging.getLogger(__name__)
 
+SCAN_INTERVAL_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=MIN_SCAN_INTERVAL,
+        max=86400,
+        step=60,
+        unit_of_measurement="s",
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
+SERVER_ID_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=1,
+        step=1,
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
+THREADS_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=1,
+        max=32,
+        step=1,
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
+DURATION_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=5,
+        max=60,
+        step=1,
+        unit_of_measurement="s",
+        mode=selector.NumberSelectorMode.BOX,
+    )
+)
+
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_BINARY_PATH): str,
+        vol.Required(CONF_SCAN_INTERVAL): SCAN_INTERVAL_SELECTOR,
+        vol.Optional(CONF_SERVER_ID): SERVER_ID_SELECTOR,
+        vol.Required(CONF_THREADS): THREADS_SELECTOR,
+        vol.Required(CONF_DURATION): DURATION_SELECTOR,
+        vol.Required(CONF_SUBMIT_RESULTS): bool,
+        vol.Optional(CONF_API_KEY): str,
+    }
+)
+
 
 def _normalize_int(value: Any, default: int) -> int:
     """Cast NumberSelector values (often floats) to int."""
@@ -44,9 +93,38 @@ def _normalize_int(value: Any, default: int) -> int:
 
 def _normalize_optional_int(value: Any) -> int | None:
     """Cast optional numeric config values to int."""
-    if value is None:
+    if value in (None, ""):
         return None
     return int(value)
+
+
+def _suggested_options(entry: ConfigEntry) -> dict[str, Any]:
+    """Build suggested values for the options form."""
+    suggested = {**entry.data, **entry.options}
+
+    suggested[CONF_SCAN_INTERVAL] = _normalize_int(
+        suggested.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
+    )
+    suggested[CONF_THREADS] = _normalize_int(
+        suggested.get(CONF_THREADS), DEFAULT_THREADS
+    )
+    suggested[CONF_DURATION] = _normalize_int(
+        suggested.get(CONF_DURATION), DEFAULT_DURATION
+    )
+
+    server_id = _normalize_optional_int(suggested.get(CONF_SERVER_ID))
+    if server_id is None:
+        suggested.pop(CONF_SERVER_ID, None)
+    else:
+        suggested[CONF_SERVER_ID] = server_id
+
+    if not suggested.get(CONF_API_KEY):
+        suggested.pop(CONF_API_KEY, None)
+
+    suggested.setdefault(CONF_BINARY_PATH, get_recommended_cli_path(entry.config_dir))
+    suggested.setdefault(CONF_SUBMIT_RESULTS, False)
+
+    return suggested
 
 
 async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, str]:
@@ -80,72 +158,6 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
         errors[CONF_BINARY_PATH] = "invalid"
 
     return errors
-
-
-def _options_schema(hass: HomeAssistant, data: dict[str, Any]) -> vol.Schema:
-    """Build the options schema from merged config data."""
-    recommended_path = get_recommended_cli_path(hass.config.config_dir)
-    return vol.Schema(
-        {
-            vol.Required(
-                CONF_BINARY_PATH,
-                default=data.get(CONF_BINARY_PATH, recommended_path),
-            ): str,
-            vol.Required(
-                CONF_SCAN_INTERVAL,
-                default=data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=MIN_SCAN_INTERVAL,
-                    max=86400,
-                    step=60,
-                    unit_of_measurement="s",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Optional(
-                CONF_SERVER_ID,
-                default=data.get(CONF_SERVER_ID),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    step=1,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_THREADS,
-                default=data.get(CONF_THREADS, DEFAULT_THREADS),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=32,
-                    step=1,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_DURATION,
-                default=data.get(CONF_DURATION, DEFAULT_DURATION),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=5,
-                    max=60,
-                    step=1,
-                    unit_of_measurement="s",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_SUBMIT_RESULTS,
-                default=data.get(CONF_SUBMIT_RESULTS, False),
-            ): bool,
-            vol.Optional(
-                CONF_API_KEY,
-                default=data.get(CONF_API_KEY, ""),
-            ): str,
-        }
-    )
 
 
 class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -211,39 +223,10 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): bool,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=MIN_SCAN_INTERVAL,
-                        max=86400,
-                        step=60,
-                        unit_of_measurement="s",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Optional(CONF_SERVER_ID): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1,
-                        step=1,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Optional(CONF_THREADS, default=DEFAULT_THREADS): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1,
-                        max=32,
-                        step=1,
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Optional(CONF_DURATION, default=DEFAULT_DURATION): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=5,
-                        max=60,
-                        step=1,
-                        unit_of_measurement="s",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
+                ): SCAN_INTERVAL_SELECTOR,
+                vol.Optional(CONF_SERVER_ID): SERVER_ID_SELECTOR,
+                vol.Optional(CONF_THREADS, default=DEFAULT_THREADS): THREADS_SELECTOR,
+                vol.Optional(CONF_DURATION, default=DEFAULT_DURATION): DURATION_SELECTOR,
                 vol.Optional(CONF_SUBMIT_RESULTS, default=False): bool,
                 vol.Optional(CONF_API_KEY): str,
             }
@@ -262,48 +245,58 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
         config_entry: ConfigEntry,
     ) -> OpenSpeedTestOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return OpenSpeedTestOptionsFlowHandler(config_entry)
+        return OpenSpeedTestOptionsFlowHandler()
 
 
 class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
     """Handle options for OpenSpeedTest CLI."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
-        data = {**self.config_entry.data, **self.config_entry.options}
-        schema = _options_schema(self.hass, data)
-
         if user_input is not None:
             errors = await _validate_binary(self.hass, user_input[CONF_BINARY_PATH])
             if errors:
                 return self.async_show_form(
                     step_id="init",
-                    data_schema=schema,
+                    data_schema=self.add_suggested_values_to_schema(
+                        OPTIONS_SCHEMA,
+                        _suggested_options(self.config_entry),
+                    ),
                     errors=errors,
                 )
 
-            if not user_input.get(CONF_API_KEY):
-                user_input[CONF_API_KEY] = None
+            options = {
+                CONF_BINARY_PATH: user_input[CONF_BINARY_PATH],
+                CONF_SCAN_INTERVAL: _normalize_int(
+                    user_input.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
+                ),
+                CONF_THREADS: _normalize_int(
+                    user_input.get(CONF_THREADS), DEFAULT_THREADS
+                ),
+                CONF_DURATION: _normalize_int(
+                    user_input.get(CONF_DURATION), DEFAULT_DURATION
+                ),
+                CONF_SERVER_ID: _normalize_optional_int(
+                    user_input.get(CONF_SERVER_ID)
+                ),
+                CONF_SUBMIT_RESULTS: user_input.get(CONF_SUBMIT_RESULTS, False),
+                CONF_API_KEY: user_input.get(CONF_API_KEY) or None,
+            }
 
-            user_input[CONF_SCAN_INTERVAL] = _normalize_int(
-                user_input.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
-            )
-            user_input[CONF_THREADS] = _normalize_int(
-                user_input.get(CONF_THREADS), DEFAULT_THREADS
-            )
-            user_input[CONF_DURATION] = _normalize_int(
-                user_input.get(CONF_DURATION), DEFAULT_DURATION
-            )
-            user_input[CONF_SERVER_ID] = _normalize_optional_int(
-                user_input.get(CONF_SERVER_ID)
-            )
+            if options[CONF_SERVER_ID] is None:
+                options.pop(CONF_SERVER_ID)
 
-            return self.async_create_entry(title="", data=user_input)
+            if options[CONF_API_KEY] is None:
+                options.pop(CONF_API_KEY)
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+            return self.async_create_entry(title="", data=options)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA,
+                _suggested_options(self.config_entry),
+            ),
+        )
