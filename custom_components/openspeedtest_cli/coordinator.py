@@ -7,14 +7,12 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
-    get_recommended_cli_path,
     CONF_API_KEY,
     CONF_BINARY_PATH,
     CONF_DURATION,
@@ -29,6 +27,7 @@ from .const import (
     PING_PATTERN,
     SERVER_PATTERN,
     UPLOAD_PATTERN,
+    get_recommended_cli_path,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,38 +47,62 @@ class SpeedtestResult:
     error: str | None = None
 
 
+def _last_numeric_match(pattern: str, output: str) -> float | None:
+    """Return the last numeric capture from output.
+
+    The CLI overwrites progress lines with \\r, so stdout may contain several
+    intermediate values before the final measurement.
+    """
+    matches = [
+        float(value)
+        for value in re.findall(pattern, output, flags=re.IGNORECASE)
+    ]
+    if not matches:
+        return None
+    return matches[-1]
+
+
 def parse_cli_output(output: str) -> SpeedtestResult:
     """Parse OpenSpeedTest CLI stdout into structured data."""
-    ping_match = re.search(PING_PATTERN, output, re.IGNORECASE)
-    jitter_match = re.search(JITTER_PATTERN, output, re.IGNORECASE)
-    download_match = re.search(DOWNLOAD_PATTERN, output, re.IGNORECASE)
-    upload_match = re.search(UPLOAD_PATTERN, output, re.IGNORECASE)
+    ping = _last_numeric_match(PING_PATTERN, output)
+    jitter = _last_numeric_match(JITTER_PATTERN, output)
+    download = _last_numeric_match(DOWNLOAD_PATTERN, output)
+    upload = _last_numeric_match(UPLOAD_PATTERN, output)
     server_match = re.search(SERVER_PATTERN, output)
 
     missing = [
         name
-        for name, match in (
-            ("ping", ping_match),
-            ("jitter", jitter_match),
-            ("download", download_match),
-            ("upload", upload_match),
+        for name, value in (
+            ("ping", ping),
+            ("jitter", jitter),
+            ("download", download),
+            ("upload", upload),
         )
-        if not match
+        if value is None
     ]
     if missing:
         raise ValueError(f"Failed to parse CLI output, missing fields: {', '.join(missing)}")
 
     server = server_match.group(1).strip() if server_match else "Unknown"
 
-    return SpeedtestResult(
-        ping=float(ping_match.group(1)),
-        jitter=float(jitter_match.group(1)),
-        download=float(download_match.group(1)),
-        upload=float(upload_match.group(1)),
+    result = SpeedtestResult(
+        ping=ping,
+        jitter=jitter,
+        download=download,
+        upload=upload,
         server=server,
         last_run=datetime.now(),
         success=True,
     )
+
+    if result.download == 0 and result.upload == 0:
+        _LOGGER.warning(
+            "OpenSpeedTest CLI reported 0 Mbps for both download and upload. "
+            "Check network access from Home Assistant to the selected server."
+        )
+        _LOGGER.debug("CLI stdout for zero-speed result:\n%s", output)
+
+    return result
 
 
 class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
@@ -96,14 +119,6 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             _LOGGER,
             name=DOMAIN,
             update_interval=None,
-        )
-
-    @property
-    def scan_interval(self) -> int:
-        """Return configured scan interval in seconds."""
-        return self.config_entry.options.get(
-            "scan_interval",
-            self.config_entry.data.get("scan_interval"),
         )
 
     def _build_command(self) -> list[str]:
