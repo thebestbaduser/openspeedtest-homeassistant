@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OpenSpeedTest CLI",
+        "description": "Configure speed tests via the OpenSpeedTest CLI tool.",
+        "data": {
+          "binary_path": "Path to openspeedtest-cli",
+          "scan_interval": "Automatic test interval (seconds)",
+          "server_id": "Server ID (optional, auto-select if empty)",
+          "threads": "Number of test threads",
+          "duration": "Download/upload duration (seconds)",
+          "submit_results": "Submit results to OpenSpeedTest.ru",
+          "api_key": "API key (required if submitting results)"
+        }
+      }
+    },
+    "error": {
+      "not_found": "CLI binary not found at the specified path",
+      "invalid": "The specified file does not appear to be openspeedtest-cli",
+      "timeout": "Timed out while validating the CLI binary"
+    },
+    "abort": {
+      "already_configured": "This CLI binary is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OpenSpeedTest CLI options",
+        "data": {
+          "binary_path": "Path to openspeedtest-cli",
+          "scan_interval": "Automatic test interval (seconds)",
+          "server_id": "Server ID (optional, auto-select if empty)",
+          "threads": "Number of test threads",
+          "duration": "Download/upload duration (seconds)",
+          "submit_results": "Submit results to OpenSpeedTest.ru",
+          "api_key": "API key (required if submitting results)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "download": {
+        "name": "Download"
+      },
+      "upload": {
+        "name": "Upload"
+      },
+      "ping": {
+        "name": "Ping"
+      },
+      "jitter": {
+        "name": "Jitter"
+      }
+    },
+    "button": {
+      "run_test": {
+        "name": "Run speed test"
+      }
+    }
+  }
+}
