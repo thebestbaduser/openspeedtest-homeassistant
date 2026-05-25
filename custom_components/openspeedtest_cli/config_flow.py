@@ -98,7 +98,7 @@ def _normalize_optional_int(value: Any) -> int | None:
     return int(value)
 
 
-def _suggested_options(entry: ConfigEntry) -> dict[str, Any]:
+def _suggested_options(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     """Build suggested values for the options form."""
     suggested = {**entry.data, **entry.options}
 
@@ -121,7 +121,9 @@ def _suggested_options(entry: ConfigEntry) -> dict[str, Any]:
     if not suggested.get(CONF_API_KEY):
         suggested.pop(CONF_API_KEY, None)
 
-    suggested.setdefault(CONF_BINARY_PATH, get_recommended_cli_path(entry.config_dir))
+    suggested.setdefault(
+        CONF_BINARY_PATH, get_recommended_cli_path(hass.config.config_dir)
+    )
     suggested.setdefault(CONF_SUBMIT_RESULTS, False)
 
     return suggested
@@ -262,7 +264,7 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
                     step_id="init",
                     data_schema=self.add_suggested_values_to_schema(
                         OPTIONS_SCHEMA,
-                        _suggested_options(self.config_entry),
+                        _suggested_options(self.hass, self.config_entry),
                     ),
                     errors=errors,
                 )
@@ -297,6 +299,6 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
                 OPTIONS_SCHEMA,
-                _suggested_options(self.config_entry),
+                _suggested_options(self.hass, self.config_entry),
             ),
         )
