@@ -9,8 +9,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_API_KEY,
@@ -20,14 +23,17 @@ from .const import (
     CONF_SUBMIT_RESULTS,
     CONF_THREADS,
     DEFAULT_DURATION,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_THREADS,
     DOMAIN,
     DOWNLOAD_PATTERN,
     JITTER_PATTERN,
+    MIN_SCAN_INTERVAL,
     PING_PATTERN,
     SERVER_PATTERN,
     UPLOAD_PATTERN,
     get_recommended_cli_path,
+    STORAGE_VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -91,7 +97,7 @@ def parse_cli_output(output: str) -> SpeedtestResult:
         download=download,
         upload=upload,
         server=server,
-        last_run=datetime.now(),
+        last_run=dt_util.utcnow(),
         success=True,
     )
 
@@ -105,6 +111,38 @@ def parse_cli_output(output: str) -> SpeedtestResult:
     return result
 
 
+def result_to_dict(result: SpeedtestResult) -> dict:
+    """Serialize a speed test result for persistent storage."""
+    return {
+        "ping": result.ping,
+        "jitter": result.jitter,
+        "download": result.download,
+        "upload": result.upload,
+        "server": result.server,
+        "last_run": result.last_run.isoformat(),
+        "success": result.success,
+        "error": result.error,
+    }
+
+
+def result_from_dict(data: dict) -> SpeedtestResult:
+    """Restore a speed test result from persistent storage."""
+    last_run = dt_util.parse_datetime(data["last_run"])
+    if last_run is None:
+        raise ValueError("Invalid last_run timestamp in cache")
+
+    return SpeedtestResult(
+        ping=float(data["ping"]),
+        jitter=float(data["jitter"]),
+        download=float(data["download"]),
+        upload=float(data["upload"]),
+        server=str(data["server"]),
+        last_run=last_run,
+        success=bool(data.get("success", True)),
+        error=data.get("error"),
+    )
+
+
 class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
     """Fetch speed test data by running openspeedtest-cli."""
 
@@ -114,12 +152,63 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
         """Initialize coordinator."""
         self.config_entry = entry
         self._lock = asyncio.Lock()
+        self._store = Store(
+            hass,
+            STORAGE_VERSION,
+            f"{DOMAIN}.{entry.entry_id}",
+        )
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=None,
         )
+
+    @property
+    def scan_interval_seconds(self) -> int:
+        """Return configured scan interval in seconds."""
+        data = {**self.config_entry.data, **self.config_entry.options}
+        interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        return max(int(interval), MIN_SCAN_INTERVAL)
+
+    def needs_refresh(self) -> bool:
+        """Return True when a new speed test should be run."""
+        if self.data is None:
+            return True
+        age = (dt_util.utcnow() - self.data.last_run).total_seconds()
+        return age >= self.scan_interval_seconds
+
+    def seconds_until_next_test(self) -> float:
+        """Return seconds until the next scheduled speed test."""
+        if self.data is None:
+            return 0
+        remaining = self.scan_interval_seconds - (
+            dt_util.utcnow() - self.data.last_run
+        ).total_seconds()
+        return max(0.0, remaining)
+
+    async def async_load_cached(self) -> None:
+        """Restore the last speed test result from storage."""
+        stored = await self._store.async_load()
+        if not stored:
+            return
+
+        try:
+            result = result_from_dict(stored)
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.warning("Could not restore cached OpenSpeedTest CLI results")
+            return
+
+        self.async_set_updated_data(result)
+        _LOGGER.debug(
+            "Restored cached speed test from %s (next test in %.0f s)",
+            result.last_run.isoformat(),
+            self.seconds_until_next_test(),
+        )
+
+    async def _async_save_result(self, result: SpeedtestResult) -> None:
+        """Persist the latest speed test result."""
+        await self._store.async_save(result_to_dict(result))
 
     def _build_command(self) -> list[str]:
         """Build CLI command from config entry."""
@@ -195,11 +284,14 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
                 )
 
             try:
-                return parse_cli_output(stdout)
+                result = parse_cli_output(stdout)
             except ValueError as err:
                 _LOGGER.debug("CLI stdout:\n%s", stdout)
                 _LOGGER.debug("CLI stderr:\n%s", stderr)
                 raise UpdateFailed(str(err)) from err
+
+            await self._async_save_result(result)
+            return result
 
     async def async_run_test(self) -> SpeedtestResult:
         """Run a speed test immediately and refresh entity states."""

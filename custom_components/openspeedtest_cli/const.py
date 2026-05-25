@@ -29,6 +29,8 @@ SENSOR_JITTER = "jitter"
 
 PLATFORMS = ["sensor", "button"]
 
+STORAGE_VERSION = 1
+
 PING_PATTERN = r"Ping:\s+([\d.]+)\s*ms"
 JITTER_PATTERN = r"Jitter:\s+([\d.]+)\s*ms"
 DOWNLOAD_PATTERN = r"Download:\s+([\d.]+)\s*Mbps"
