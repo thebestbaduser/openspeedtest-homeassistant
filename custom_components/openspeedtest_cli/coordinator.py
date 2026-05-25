@@ -14,13 +14,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    get_recommended_cli_path,
     CONF_API_KEY,
     CONF_BINARY_PATH,
     CONF_DURATION,
     CONF_SERVER_ID,
     CONF_SUBMIT_RESULTS,
     CONF_THREADS,
-    DEFAULT_BINARY_PATH,
     DEFAULT_DURATION,
     DEFAULT_THREADS,
     DOMAIN,
@@ -109,17 +109,20 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
     def _build_command(self) -> list[str]:
         """Build CLI command from config entry."""
         data = {**self.config_entry.data, **self.config_entry.options}
-        binary = data.get(CONF_BINARY_PATH, DEFAULT_BINARY_PATH)
+        binary = data.get(
+            CONF_BINARY_PATH,
+            get_recommended_cli_path(self.hass.config.config_dir),
+        )
         command = [binary]
 
         if not data.get(CONF_SUBMIT_RESULTS, False):
             command.append("--no-submit")
 
         if server_id := data.get(CONF_SERVER_ID):
-            command.extend(["--server", str(server_id)])
+            command.extend(["--server", str(int(server_id))])
 
-        threads = data.get(CONF_THREADS, DEFAULT_THREADS)
-        duration = data.get(CONF_DURATION, DEFAULT_DURATION)
+        threads = int(data.get(CONF_THREADS, DEFAULT_THREADS))
+        duration = int(data.get(CONF_DURATION, DEFAULT_DURATION))
         command.extend(["--threads", str(threads), "--duration", str(duration)])
 
         if api_key := data.get(CONF_API_KEY):

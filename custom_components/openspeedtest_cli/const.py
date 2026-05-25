@@ -3,13 +3,16 @@
 DOMAIN = "openspeedtest_cli"
 
 CONF_BINARY_PATH = "binary_path"
+CONF_INSTALL_CLI = "install_cli"
 CONF_SERVER_ID = "server_id"
 CONF_THREADS = "threads"
 CONF_DURATION = "duration"
 CONF_SUBMIT_RESULTS = "submit_results"
 CONF_API_KEY = "api_key"
 
-DEFAULT_BINARY_PATH = "openspeedtest-cli"
+CLI_BINARY_NAME = "openspeedtest-cli"
+CLI_DOWNLOAD_URL = "https://openspeedtest.ru/cli/openspeedtest-cli"
+
 DEFAULT_SCAN_INTERVAL = 6 * 60 * 60
 DEFAULT_THREADS = 8
 DEFAULT_DURATION = 10
@@ -31,3 +34,8 @@ JITTER_PATTERN = r"Jitter:\s+([\d.]+)\s*ms"
 DOWNLOAD_PATTERN = r"Download:\s+([\d.]+)\s*Mbps"
 UPLOAD_PATTERN = r"Upload:\s+([\d.]+)\s*Mbps"
 SERVER_PATTERN = r"Сервер:\s+(.+)"
+
+
+def get_recommended_cli_path(config_path: str) -> str:
+    """Return the persistent CLI path inside the Home Assistant config directory."""
+    return f"{config_path}/{CLI_BINARY_NAME}"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 
 import voluptuous as vol
@@ -18,18 +19,34 @@ from .const import (
     CONF_API_KEY,
     CONF_BINARY_PATH,
     CONF_DURATION,
+    CONF_INSTALL_CLI,
     CONF_SERVER_ID,
     CONF_SUBMIT_RESULTS,
     CONF_THREADS,
-    DEFAULT_BINARY_PATH,
     DEFAULT_DURATION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_THREADS,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    get_recommended_cli_path,
 )
+from .installer import async_install_cli
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _normalize_int(value: Any, default: int) -> int:
+    """Cast NumberSelector values (often floats) to int."""
+    if value is None:
+        return default
+    return int(value)
+
+
+def _normalize_optional_int(value: Any) -> int | None:
+    """Cast optional numeric config values to int."""
+    if value is None:
+        return None
+    return int(value)
 
 
 async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, str]:
@@ -65,13 +82,14 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
     return errors
 
 
-def _options_schema(data: dict[str, Any]) -> vol.Schema:
+def _options_schema(hass: HomeAssistant, data: dict[str, Any]) -> vol.Schema:
     """Build the options schema from merged config data."""
+    recommended_path = get_recommended_cli_path(hass.config.config_dir)
     return vol.Schema(
         {
             vol.Required(
                 CONF_BINARY_PATH,
-                default=data.get(CONF_BINARY_PATH, DEFAULT_BINARY_PATH),
+                default=data.get(CONF_BINARY_PATH, recommended_path),
             ): str,
             vol.Required(
                 CONF_SCAN_INTERVAL,
@@ -140,23 +158,43 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
+        recommended_path = get_recommended_cli_path(self.hass.config.config_dir)
 
         if user_input is not None:
-            errors = await _validate_binary(self.hass, user_input[CONF_BINARY_PATH])
+            binary_path = user_input[CONF_BINARY_PATH]
+
+            if user_input.get(CONF_INSTALL_CLI):
+                try:
+                    await async_install_cli(self.hass, binary_path)
+                except Exception as err:
+                    _LOGGER.exception("Failed to install OpenSpeedTest CLI")
+                    errors["base"] = "download_failed"
+                    if isinstance(err, ValueError):
+                        errors["base"] = "invalid_download"
+
             if not errors:
-                await self.async_set_unique_id(user_input[CONF_BINARY_PATH])
+                errors = await _validate_binary(self.hass, binary_path)
+
+            if not errors:
+                await self.async_set_unique_id(binary_path)
                 self._abort_if_unique_id_configured()
                 api_key = user_input.get(CONF_API_KEY) or None
                 return self.async_create_entry(
                     title="OpenSpeedTest CLI",
                     data={
-                        CONF_BINARY_PATH: user_input[CONF_BINARY_PATH],
-                        CONF_SCAN_INTERVAL: user_input.get(
-                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        CONF_BINARY_PATH: binary_path,
+                        CONF_SCAN_INTERVAL: _normalize_int(
+                            user_input.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
                         ),
-                        CONF_THREADS: user_input.get(CONF_THREADS, DEFAULT_THREADS),
-                        CONF_DURATION: user_input.get(CONF_DURATION, DEFAULT_DURATION),
-                        CONF_SERVER_ID: user_input.get(CONF_SERVER_ID),
+                        CONF_THREADS: _normalize_int(
+                            user_input.get(CONF_THREADS), DEFAULT_THREADS
+                        ),
+                        CONF_DURATION: _normalize_int(
+                            user_input.get(CONF_DURATION), DEFAULT_DURATION
+                        ),
+                        CONF_SERVER_ID: _normalize_optional_int(
+                            user_input.get(CONF_SERVER_ID)
+                        ),
                         CONF_SUBMIT_RESULTS: user_input.get(
                             CONF_SUBMIT_RESULTS, False
                         ),
@@ -166,7 +204,11 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_BINARY_PATH, default=DEFAULT_BINARY_PATH): str,
+                vol.Required(CONF_BINARY_PATH, default=recommended_path): str,
+                vol.Optional(
+                    CONF_INSTALL_CLI,
+                    default=not os.path.exists(recommended_path),
+                ): bool,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
                 ): selector.NumberSelector(
@@ -211,6 +253,7 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=schema,
             errors=errors,
+            description_placeholders={"config_path": recommended_path},
         )
 
     @staticmethod
@@ -234,7 +277,7 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         data = {**self.config_entry.data, **self.config_entry.options}
-        schema = _options_schema(data)
+        schema = _options_schema(self.hass, data)
 
         if user_input is not None:
             errors = await _validate_binary(self.hass, user_input[CONF_BINARY_PATH])
@@ -247,6 +290,19 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
 
             if not user_input.get(CONF_API_KEY):
                 user_input[CONF_API_KEY] = None
+
+            user_input[CONF_SCAN_INTERVAL] = _normalize_int(
+                user_input.get(CONF_SCAN_INTERVAL), DEFAULT_SCAN_INTERVAL
+            )
+            user_input[CONF_THREADS] = _normalize_int(
+                user_input.get(CONF_THREADS), DEFAULT_THREADS
+            )
+            user_input[CONF_DURATION] = _normalize_int(
+                user_input.get(CONF_DURATION), DEFAULT_DURATION
+            )
+            user_input[CONF_SERVER_ID] = _normalize_optional_int(
+                user_input.get(CONF_SERVER_ID)
+            )
 
             return self.async_create_entry(title="", data=user_input)
 
