@@ -2,111 +2,219 @@
 
 Кастомная интеграция для [Home Assistant](https://www.home-assistant.io/), которая запускает [OpenSpeedTest CLI](https://openspeedtest.ru/cli/) и публикует результаты замеров в виде сущностей.
 
+**Репозиторий:** https://github.com/thebestbaduser/openspeedtest-homeassistant
+
 ## Возможности
 
 - Сенсоры: **Download**, **Upload**, **Ping**, **Jitter**
-- Кнопка **Run speed test** для ручного запуска
-- Периодические автоматические тесты (по умолчанию каждые 6 часов)
-- Настройка сервера, потоков, длительности теста
-- Опциональная отправка результатов на OpenSpeedTest.ru
-- Автоматическая установка CLI в директорию `config` при первой настройке
+- Кнопка **Запустить тест** для ручного замера
+- Автоматические тесты по расписанию (по умолчанию каждые 6 часов)
+- Настройка сервера, потоков и длительности теста через UI
+- Автозагрузка CLI в директорию `config` при первой настройке
+- Опциональная отправка результатов на [OpenSpeedTest.ru](https://openspeedtest.ru/)
 
 ## Требования
 
-1. Home Assistant **2023.8+**
-2. [OpenSpeedTest CLI](https://openspeedtest.ru/cli/) — Python 3, без внешних зависимостей
+| Компонент | Версия |
+|-----------|--------|
+| Home Assistant | 2023.8+ |
+| Python | 3 (уже есть в HA) |
+| OpenSpeedTest CLI | [openspeedtest.ru/cli](https://openspeedtest.ru/cli/) |
+
+CLI — один Python-скрипт без внешних зависимостей.
+
+---
+
+## Установка через HACS
+
+1. Установите [HACS](https://hacs.xyz/)
+2. **HACS → Integrations → ⋮ → Custom repositories**
+3. Добавьте репозиторий:
+   - URL: `https://github.com/thebestbaduser/openspeedtest-homeassistant`
+   - Category: **Integration**
+4. Найдите **OpenSpeedTest CLI** → **Download**
+5. **Перезагрузите Home Assistant**
+6. **Settings → Devices & Services → Add Integration** → **OpenSpeedTest CLI**
+
+### Первая настройка
+
+| Поле | Рекомендация |
+|------|--------------|
+| Path to CLI | `/config/openspeedtest-cli` (по умолчанию) |
+| Download CLI | Включить, если файла ещё нет |
+| Scan interval | `21600` (6 ч), минимум `900` (15 мин) |
+| Submit results | Выключено, если не нужна отправка на сайт |
+
+---
+
+## Ручная установка интеграции
+
+Скопируйте папку `custom_components/openspeedtest_cli` в:
+
+```
+/config/custom_components/openspeedtest_cli/
+```
+
+Перезагрузите Home Assistant.
+
+---
 
 ## Где хранить CLI
 
-### Home Assistant Container / HA OS (рекомендуется)
+### Что такое `/config`
 
-При обновлении Home Assistant **контейнер пересоздаётся**. Всё, что установлено внутри контейнера (`/usr/local/bin`, пакеты через apt и т.д.), **пропадает**.
+`/config` — **постоянная директория конфигурации** Home Assistant. В ней лежат `configuration.yaml`, `.storage/`, `custom_components/` и другие данные.
 
-Единственная постоянная директория — **`/config`** (volume с вашей конфигурацией). Поэтому CLI нужно хранить там:
+| Тип установки | Путь внутри HA | Где на диске хоста |
+|---------------|----------------|---------------------|
+| Container / HA OS | `/config` | Volume, который вы смонтировали при установке |
+| Core (venv) | `~/.homeassistant` или своя папка | Указана при установке |
+
+**HACS обновляет интеграцию именно в `/config/custom_components/`**, а не по номеру коммита GitHub.
+
+### Почему CLI должен быть в `/config`
+
+При обновлении Home Assistant **контейнер пересоздаётся**. Всё внутри образа (`/usr/local/bin`, `apt install` и т.д.) **пропадает**. Директория `/config` — **единственная постоянная**.
+
+Рекомендуемый путь:
 
 ```
 /config/openspeedtest-cli
 ```
 
-При добавлении интеграции путь по умолчанию уже указывает на `/config/openspeedtest-cli`. Можно включить галочку **«Скачать CLI в директорию config»** — интеграция сама загрузит скрипт при настройке.
-
-### Обычная установка (venv / Core)
-
-Директория config тоже сохраняется между обновлениями, поэтому тот же путь `{config_dir}/openspeedtest-cli` — надёжный вариант. Альтернатива: установить CLI системно в `PATH`, если удобнее.
-
-## Установка через HACS
-
-1. Установите [HACS](https://hacs.xyz/)
-2. Добавьте custom repository:
-   - Repository: `https://github.com/thebestbaduser/openspeedtest-homeassistant`
-   - Category: **Integration**
-3. Установите **OpenSpeedTest CLI** через HACS
-4. Перезагрузите Home Assistant
-5. **Settings → Devices & Services → Add Integration** → **OpenSpeedTest CLI**
-6. Оставьте путь `/config/openspeedtest-cli` и включите автозагрузку CLI, если файла ещё нет
-
-## Ручная установка CLI (опционально)
-
-Если не используете автозагрузку из интеграции:
+Интеграция может скачать CLI туда автоматически (галочка при настройке) или вручную:
 
 ```bash
-# На хосте — скопируйте файл в смонтированную директорию config
-curl -sLo openspeedtest-cli https://openspeedtest.ru/cli/openspeedtest-cli
-chmod +x openspeedtest-cli
-mv openspeedtest-cli /path/to/your/homeassistant/config/openspeedtest-cli
+curl -sLo /config/openspeedtest-cli https://openspeedtest.ru/cli/openspeedtest-cli
+sed -i 's/\r$//' /config/openspeedtest-cli   # исправить CRLF, если нужно
+chmod +x /config/openspeedtest-cli
+/config/openspeedtest-cli --help
 ```
 
-## Настройка
+---
+
+## Настройки после установки
+
+**Settings → Devices & Services → OpenSpeedTest CLI → Configure**
 
 | Параметр | Описание | По умолчанию |
 |----------|----------|--------------|
 | Path to CLI | Путь к исполняемому файлу | `/config/openspeedtest-cli` |
-| Download CLI | Скачать скрипт в config при настройке | вкл., если файла нет |
 | Scan interval | Интервал автотестов (сек) | `21600` (6 ч) |
-| Server ID | ID сервера OpenSpeedTest | автовыбор |
+| Server ID | ID сервера (пусто = автовыбор) | — |
 | Threads | Потоки теста | `8` |
 | Duration | Длительность download/upload (сек) | `10` |
 | Submit results | Отправка на openspeedtest.ru | `false` |
 | API key | Ключ из личного кабинета | — |
 
-Минимальный интервал автотестов — **15 минут** (тесты нагружают канал).
+> Минимальный интервал — **900 секунд (15 минут)**. Тесты нагружают канал.
+
+Первый автотест запускается **через 30 секунд после старта** HA (не блокирует загрузку системы).
+
+---
 
 ## Сущности
 
-| Entity | Описание |
-|--------|----------|
-| `sensor.*_download` | Скорость скачивания (Mbit/s) |
-| `sensor.*_upload` | Скорость отдачи (Mbit/s) |
-| `sensor.*_ping` | Ping (ms) |
-| `sensor.*_jitter` | Jitter (ms) |
-| `button.*_run_test` | Запуск теста вручную |
+| Entity ID | Описание |
+|-----------|----------|
+| `sensor.<имя>_download` | Скорость скачивания (Mbit/s) |
+| `sensor.<имя>_upload` | Скорость отдачи (Mbit/s) |
+| `sensor.<имя>_ping` | Ping (ms) |
+| `sensor.<им_name>_jitter` | Jitter (ms) |
+| `button.<имя>_run_test` | Запуск теста вручную |
+
+Атрибуты сенсоров: `server`, `last_run`, `error`.
+
+---
+
+## Автоматизация
+
+Уведомление при падении скорости ниже 50 Mbit/s:
+
+```yaml
+automation:
+  - alias: "Низкая скорость скачивания"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.openspeedtest_cli_download
+        below: 50
+    action:
+      - service: notify.mobile_app
+        data:
+          message: >
+            Скорость скачивания: {{ states('sensor.openspeedtest_cli_download') }} Mbit/s
+            (сервер: {{ state_attr('sensor.openspeedtest_cli_download', 'server') }})
+```
+
+---
+
+## Обновление через HACS
+
+HACS смотрит **версию в `manifest.json` на ветке `main`**, а не номер коммита.
+
+1. **HACS → Integrations → OpenSpeedTest CLI**
+2. **Update** или **⋮ → Redownload**
+3. При проблемах: **HACS → ⋮ → Clear cache**
+4. **Перезагрузить Home Assistant**
+
+Проверка установленной версии:
+
+```bash
+grep '"version"' /config/custom_components/openspeedtest_cli/manifest.json
+```
+
+---
 
 ## Устранение неполадок
 
+### HACS не обновляет версию
+
+Убедитесь, что файлы обновились **на диске HA**, а не только скачались на компьютер:
+
+```bash
+grep version /config/custom_components/openspeedtest_cli/manifest.json
+```
+
+Если версия старая — **Redownload** + **Clear cache** + перезагрузка HA.
+
+Принудительное обновление одного файла:
+
+```bash
+wget -O /config/custom_components/openspeedtest_cli/config_flow.py \
+  https://raw.githubusercontent.com/thebestbaduser/openspeedtest-homeassistant/main/custom_components/openspeedtest_cli/config_flow.py
+```
+
 ### `/usr/bin/env: 'python3\r': No such file or directory`
 
-Скрипт скачан с Windows-переводами строк (CRLF). Linux не может запустить shebang `#!/usr/bin/env python3\r`.
-
-Исправление:
+Скрипт с Windows-переводами строк (CRLF):
 
 ```bash
 sed -i 's/\r$//' /config/openspeedtest-cli
 chmod +x /config/openspeedtest-cli
 ```
 
-Или через `dos2unix`:
+Интеграция при автозагрузке исправляет CRLF автоматически.
+
+### Скачивание/отдача = 0,00 Mbit/s, пинг нормальный
+
+1. Запустите тест вручную кнопкой **Запустить тест** и подождите ~60 сек
+2. Проверьте CLI напрямую:
 
 ```bash
-dos2unix /config/openspeedtest-cli
-chmod +x /config/openspeedtest-cli
+/config/openspeedtest-cli --no-submit --threads 8 --duration 10
 ```
 
-Проверка:
+Если и в CLI нули — проблема в сетевом доступе из контейнера HA до серверов OpenSpeedTest.
 
-```bash
-./openspeedtest-cli --help
-```
+### Ошибка `invalid int value: '8.0'`
 
+Обновите интеграцию до **1.0.3+** (исправлено приведение типов NumberSelector).
+
+### Настройки не открываются (500 Internal Server Error)
+
+Обновите интеграцию до **1.0.7+** (исправлен options flow).
+
+---
 
 ## Лицензия
 
