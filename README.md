@@ -120,7 +120,7 @@ chmod +x /config/openspeedtest-cli
 | `sensor.<имя>_download` | Скорость скачивания (Mbit/s) |
 | `sensor.<имя>_upload` | Скорость отдачи (Mbit/s) |
 | `sensor.<имя>_ping` | Ping (ms) |
-| `sensor.<им_name>_jitter` | Jitter (ms) |
+| `sensor.<имя>_jitter` | Jitter (ms) |
 | `button.<имя>_run_test` | Запуск теста вручную |
 
 Атрибуты сенсоров: `server`, `last_run`, `error`.
