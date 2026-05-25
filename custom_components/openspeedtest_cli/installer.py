@@ -13,12 +13,20 @@ from .const import CLI_DOWNLOAD_URL
 _LOGGER = logging.getLogger(__name__)
 
 
+def _normalize_cli_content(content: bytes) -> bytes:
+    """Convert Windows CRLF line endings to Unix LF."""
+    if b"\r" not in content:
+        return content
+    _LOGGER.debug("Normalizing CRLF line endings in openspeedtest-cli")
+    return content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 async def async_install_cli(hass: HomeAssistant, destination: str) -> None:
     """Download openspeedtest-cli to a persistent path."""
     session = aiohttp_client.async_get_clientsession(hass)
     async with session.get(CLI_DOWNLOAD_URL, timeout=60) as response:
         response.raise_for_status()
-        content = await response.read()
+        content = _normalize_cli_content(await response.read())
 
     if not content.startswith(b"#!"):
         raise ValueError("Downloaded file does not look like openspeedtest-cli")

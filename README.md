@@ -81,6 +81,33 @@ mv openspeedtest-cli /path/to/your/homeassistant/config/openspeedtest-cli
 | `sensor.*_jitter` | Jitter (ms) |
 | `button.*_run_test` | Запуск теста вручную |
 
+## Устранение неполадок
+
+### `/usr/bin/env: 'python3\r': No such file or directory`
+
+Скрипт скачан с Windows-переводами строк (CRLF). Linux не может запустить shebang `#!/usr/bin/env python3\r`.
+
+Исправление:
+
+```bash
+sed -i 's/\r$//' /config/openspeedtest-cli
+chmod +x /config/openspeedtest-cli
+```
+
+Или через `dos2unix`:
+
+```bash
+dos2unix /config/openspeedtest-cli
+chmod +x /config/openspeedtest-cli
+```
+
+Проверка:
+
+```bash
+./openspeedtest-cli --help
+```
+
+
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).
