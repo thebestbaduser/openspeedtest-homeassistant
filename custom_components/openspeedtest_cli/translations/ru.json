@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OpenSpeedTest CLI",
+        "description": "Настройка замеров скорости через утилиту OpenSpeedTest CLI.",
+        "data": {
+          "binary_path": "Путь к openspeedtest-cli",
+          "scan_interval": "Интервал автоматических тестов (секунды)",
+          "server_id": "ID сервера (необязательно, иначе автовыбор)",
+          "threads": "Количество потоков",
+          "duration": "Длительность download/upload (секунды)",
+          "submit_results": "Отправлять результаты на OpenSpeedTest.ru",
+          "api_key": "API-ключ (нужен при отправке результатов)"
+        }
+      }
+    },
+    "error": {
+      "not_found": "CLI не найден по указанному пути",
+      "invalid": "Указанный файл не похож на openspeedtest-cli",
+      "timeout": "Превышено время ожидания при проверке CLI"
+    },
+    "abort": {
+      "already_configured": "Этот CLI уже настроен"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Параметры OpenSpeedTest CLI",
+        "data": {
+          "binary_path": "Путь к openspeedtest-cli",
+          "scan_interval": "Интервал автоматических тестов (секунды)",
+          "server_id": "ID сервера (необязательно, иначе автовыбор)",
+          "threads": "Количество потоков",
+          "duration": "Длительность download/upload (секунды)",
+          "submit_results": "Отправлять результаты на OpenSpeedTest.ru",
+          "api_key": "API-ключ (нужен при отправке результатов)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "download": {
+        "name": "Скачивание"
+      },
+      "upload": {
+        "name": "Отдача"
+      },
+      "ping": {
+        "name": "Пинг"
+      },
+      "jitter": {
+        "name": "Джиттер"
+      }
+    },
+    "button": {
+      "run_test": {
+        "name": "Запустить тест"
+      }
+    }
+  }
+}
