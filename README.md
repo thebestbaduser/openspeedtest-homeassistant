@@ -216,6 +216,12 @@ chmod +x /config/openspeedtest-cli
 
 ---
 
+## Иконка
+
+- **HACS** — `icon.png` в корне репозитория
+- **Home Assistant 2026.3+** — `custom_components/openspeedtest_cli/brand/icon.png` и `logo.png` (страница интеграций и устройств)
+
+
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).
