@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -16,12 +18,15 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    ATTR_ERROR,
-    ATTR_LAST_RUN,
     ATTR_SERVER,
+    CONFIGURATION_URL,
+    DEVICE_MANUFACTURER,
+    DEVICE_MODEL,
+    DEVICE_NAME,
     DOMAIN,
     SENSOR_DOWNLOAD,
     SENSOR_JITTER,
+    SENSOR_LAST_TEST,
     SENSOR_PING,
     SENSOR_UPLOAD,
 )
@@ -35,6 +40,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         device_class=SensorDeviceClass.DATA_RATE,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
     ),
     SensorEntityDescription(
         key=SENSOR_UPLOAD,
@@ -43,6 +49,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         device_class=SensorDeviceClass.DATA_RATE,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
     ),
     SensorEntityDescription(
         key=SENSOR_PING,
@@ -51,6 +58,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MILLISECONDS,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
     ),
     SensorEntityDescription(
         key=SENSOR_JITTER,
@@ -59,6 +67,13 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MILLISECONDS,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_LAST_TEST,
+        translation_key=SENSOR_LAST_TEST,
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.TIMESTAMP,
     ),
 )
 
@@ -94,30 +109,36 @@ class OpenSpeedTestSensor(CoordinatorEntity[OpenSpeedTestCoordinator], SensorEnt
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name="OpenSpeedTest CLI",
-            manufacturer="OpenSpeedTest.ru",
-            model="CLI Speed Test",
-            configuration_url="https://openspeedtest.ru/cli/",
+            name=DEVICE_NAME,
+            manufacturer=DEVICE_MANUFACTURER,
+            model=DEVICE_MODEL,
+            configuration_url=CONFIGURATION_URL,
         )
 
     @property
-    def native_value(self) -> float | None:
+    def available(self) -> bool:
+        """Return whether the sensor has data to report."""
+        return self.coordinator.data is not None
+
+    @property
+    def native_value(self) -> float | datetime | None:
         """Return the state of the sensor."""
-        if not self.coordinator.data or not self.coordinator.data.success:
+        data: SpeedtestResult | None = self.coordinator.data
+        if data is None:
             return None
 
-        data: SpeedtestResult = self.coordinator.data
+        if self.entity_description.key == SENSOR_LAST_TEST:
+            return data.last_run
+
         return getattr(data, self.entity_description.key)
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | None]:
+    def extra_state_attributes(self) -> dict[str, str] | None:
         """Return extra state attributes."""
-        if not self.coordinator.data:
-            return {}
+        if self.coordinator.data is None:
+            return None
 
-        data = self.coordinator.data
-        return {
-            ATTR_SERVER: data.server,
-            ATTR_LAST_RUN: data.last_run.isoformat(),
-            ATTR_ERROR: data.error,
-        }
+        if self.entity_description.key == SENSOR_LAST_TEST:
+            return None
+
+        return {ATTR_SERVER: self.coordinator.data.server}

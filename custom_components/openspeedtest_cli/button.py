@@ -9,7 +9,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import (
+    CONFIGURATION_URL,
+    DEVICE_MANUFACTURER,
+    DEVICE_MODEL,
+    DEVICE_NAME,
+    DOMAIN,
+)
 from .coordinator import OpenSpeedTestCoordinator
 
 
@@ -40,12 +46,12 @@ class OpenSpeedTestRunButton(CoordinatorEntity[OpenSpeedTestCoordinator], Button
         self._attr_unique_id = f"{entry.entry_id}_run_test"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name="OpenSpeedTest CLI",
-            manufacturer="OpenSpeedTest.ru",
-            model="CLI Speed Test",
-            configuration_url="https://openspeedtest.ru/cli/",
+            name=DEVICE_NAME,
+            manufacturer=DEVICE_MANUFACTURER,
+            model=DEVICE_MODEL,
+            configuration_url=CONFIGURATION_URL,
         )
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        await self.coordinator.async_run_test()
+        await self.coordinator.async_refresh()

@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-import logging
-import re
 from dataclasses import dataclass
 from datetime import datetime
+import logging
+import re
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -29,11 +31,13 @@ from .const import (
     DOWNLOAD_PATTERN,
     JITTER_PATTERN,
     MIN_SCAN_INTERVAL,
+    MIN_SCHEDULE_DELAY,
     PING_PATTERN,
     SERVER_PATTERN,
+    STARTUP_TEST_DELAY,
+    STORAGE_VERSION,
     UPLOAD_PATTERN,
     get_recommended_cli_path,
-    STORAGE_VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,8 +53,6 @@ class SpeedtestResult:
     upload: float
     server: str
     last_run: datetime
-    success: bool
-    error: str | None = None
 
 
 def _last_numeric_match(pattern: str, output: str) -> float | None:
@@ -59,13 +61,10 @@ def _last_numeric_match(pattern: str, output: str) -> float | None:
     The CLI overwrites progress lines with \\r, so stdout may contain several
     intermediate values before the final measurement.
     """
-    matches = [
-        float(value)
-        for value in re.findall(pattern, output, flags=re.IGNORECASE)
-    ]
+    matches = re.findall(pattern, output, flags=re.IGNORECASE)
     if not matches:
         return None
-    return matches[-1]
+    return float(matches[-1])
 
 
 def parse_cli_output(output: str) -> SpeedtestResult:
@@ -87,9 +86,11 @@ def parse_cli_output(output: str) -> SpeedtestResult:
         if value is None
     ]
     if missing:
-        raise ValueError(f"Failed to parse CLI output, missing fields: {', '.join(missing)}")
+        raise ValueError(
+            f"Failed to parse CLI output, missing fields: {', '.join(missing)}"
+        )
 
-    server = server_match.group(1).strip() if server_match else "Unknown"
+    server = server_match.group(1).strip() if server_match else "unknown"
 
     result = SpeedtestResult(
         ping=ping,
@@ -98,20 +99,19 @@ def parse_cli_output(output: str) -> SpeedtestResult:
         upload=upload,
         server=server,
         last_run=dt_util.utcnow(),
-        success=True,
     )
 
     if result.download == 0 and result.upload == 0:
         _LOGGER.warning(
             "OpenSpeedTest CLI reported 0 Mbps for both download and upload. "
-            "Check network access from Home Assistant to the selected server."
+            "Check network access from Home Assistant to the selected server"
         )
         _LOGGER.debug("CLI stdout for zero-speed result:\n%s", output)
 
     return result
 
 
-def result_to_dict(result: SpeedtestResult) -> dict:
+def result_to_dict(result: SpeedtestResult) -> dict[str, Any]:
     """Serialize a speed test result for persistent storage."""
     return {
         "ping": result.ping,
@@ -120,16 +120,16 @@ def result_to_dict(result: SpeedtestResult) -> dict:
         "upload": result.upload,
         "server": result.server,
         "last_run": result.last_run.isoformat(),
-        "success": result.success,
-        "error": result.error,
     }
 
 
-def result_from_dict(data: dict) -> SpeedtestResult:
+def result_from_dict(data: dict[str, Any]) -> SpeedtestResult:
     """Restore a speed test result from persistent storage."""
     last_run = dt_util.parse_datetime(data["last_run"])
     if last_run is None:
         raise ValueError("Invalid last_run timestamp in cache")
+    if last_run.tzinfo is None:
+        last_run = last_run.replace(tzinfo=dt_util.UTC)
 
     return SpeedtestResult(
         ping=float(data["ping"]),
@@ -138,8 +138,6 @@ def result_from_dict(data: dict) -> SpeedtestResult:
         upload=float(data["upload"]),
         server=str(data["server"]),
         last_run=last_run,
-        success=bool(data.get("success", True)),
-        error=data.get("error"),
     )
 
 
@@ -151,12 +149,12 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize coordinator."""
         self.config_entry = entry
-        self._lock = asyncio.Lock()
-        self._store = Store(
+        self._store: Store[dict[str, Any]] = Store(
             hass,
             STORAGE_VERSION,
             f"{DOMAIN}.{entry.entry_id}",
         )
+        self._unsub_timer: CALLBACK_TYPE | None = None
         super().__init__(
             hass,
             _LOGGER,
@@ -178,14 +176,14 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
         age = (dt_util.utcnow() - self.data.last_run).total_seconds()
         return age >= self.scan_interval_seconds
 
-    def seconds_until_next_test(self) -> float:
+    def seconds_until_next_test(self) -> int:
         """Return seconds until the next scheduled speed test."""
         if self.data is None:
             return 0
         remaining = self.scan_interval_seconds - (
             dt_util.utcnow() - self.data.last_run
         ).total_seconds()
-        return max(0.0, remaining)
+        return max(0, int(remaining))
 
     async def async_load_cached(self) -> None:
         """Restore the last speed test result from storage."""
@@ -201,14 +199,40 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
 
         self.async_set_updated_data(result)
         _LOGGER.debug(
-            "Restored cached speed test from %s (next test in %.0f s)",
+            "Restored cached speed test from %s (next test in %d s)",
             result.last_run.isoformat(),
             self.seconds_until_next_test(),
         )
 
-    async def _async_save_result(self, result: SpeedtestResult) -> None:
-        """Persist the latest speed test result."""
-        await self._store.async_save(result_to_dict(result))
+    @callback
+    def async_start_scheduler(self) -> None:
+        """Schedule the next speed test based on cache age."""
+        self.async_stop_scheduler()
+        delay = (
+            STARTUP_TEST_DELAY
+            if self.needs_refresh()
+            else max(MIN_SCHEDULE_DELAY, self.seconds_until_next_test())
+        )
+        _LOGGER.debug("Next OpenSpeedTest CLI run in %d s", delay)
+        self._unsub_timer = async_call_later(
+            self.hass, delay, self._async_run_scheduled
+        )
+
+    @callback
+    def async_stop_scheduler(self) -> None:
+        """Cancel any pending speed test schedule."""
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+
+    async def _async_run_scheduled(self, _now) -> None:
+        """Run a speed test when the interval elapsed and reschedule."""
+        self._unsub_timer = None
+        try:
+            if self.needs_refresh():
+                await self.async_refresh()
+        finally:
+            self.async_start_scheduler()
 
     def _build_command(self) -> list[str]:
         """Build CLI command from config entry."""
@@ -242,62 +266,49 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
 
     async def _async_update_data(self) -> SpeedtestResult:
         """Run speed test and return parsed results."""
-        if self._lock.locked():
-            raise UpdateFailed("Speed test is already running")
+        command = self._build_command()
+        timeout = self._calculate_timeout()
+        _LOGGER.debug("Running OpenSpeedTest CLI: %s", " ".join(command))
 
-        async with self._lock:
-            command = self._build_command()
-            timeout = self._calculate_timeout()
-            _LOGGER.debug("Running OpenSpeedTest CLI: %s", " ".join(command))
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError as err:
+            raise UpdateFailed(
+                f"OpenSpeedTest CLI not found at '{command[0]}'. "
+                "Check the binary path in integration settings."
+            ) from err
 
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    *command,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-            except FileNotFoundError as err:
-                raise UpdateFailed(
-                    f"OpenSpeedTest CLI not found at '{command[0]}'. "
-                    "Check the binary path in integration settings."
-                ) from err
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                process.communicate(),
+                timeout=timeout,
+            )
+        except TimeoutError as err:
+            process.kill()
+            await process.wait()
+            raise UpdateFailed(
+                f"Speed test timed out after {timeout} seconds"
+            ) from err
 
-            try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout,
-                )
-            except TimeoutError as err:
-                process.kill()
-                await process.wait()
-                raise UpdateFailed(
-                    f"Speed test timed out after {timeout} seconds"
-                ) from err
+        stdout = stdout_bytes.decode("utf-8", errors="replace")
+        stderr = stderr_bytes.decode("utf-8", errors="replace")
 
-            stdout = stdout_bytes.decode("utf-8", errors="replace")
-            stderr = stderr_bytes.decode("utf-8", errors="replace")
+        if process.returncode != 0:
+            detail = stderr.strip() or stdout.strip() or "Unknown error"
+            raise UpdateFailed(
+                f"OpenSpeedTest CLI exited with code {process.returncode}: {detail}"
+            )
 
-            if process.returncode != 0:
-                detail = stderr.strip() or stdout.strip() or "Unknown error"
-                raise UpdateFailed(
-                    f"OpenSpeedTest CLI exited with code {process.returncode}: {detail}"
-                )
+        try:
+            result = parse_cli_output(stdout)
+        except ValueError as err:
+            _LOGGER.debug("CLI stdout:\n%s", stdout)
+            _LOGGER.debug("CLI stderr:\n%s", stderr)
+            raise UpdateFailed(str(err)) from err
 
-            try:
-                result = parse_cli_output(stdout)
-            except ValueError as err:
-                _LOGGER.debug("CLI stdout:\n%s", stdout)
-                _LOGGER.debug("CLI stderr:\n%s", stderr)
-                raise UpdateFailed(str(err)) from err
-
-            await self._async_save_result(result)
-            return result
-
-    async def async_run_test(self) -> SpeedtestResult:
-        """Run a speed test immediately and refresh entity states."""
-        await self.async_request_refresh()
-        if self.last_exception is not None:
-            raise self.last_exception
-        if self.data is None:
-            raise UpdateFailed("Speed test finished without data")
-        return self.data
+        await self._store.async_save(result_to_dict(result))
+        return result

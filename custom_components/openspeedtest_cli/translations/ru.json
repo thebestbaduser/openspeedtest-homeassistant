@@ -45,23 +45,14 @@
   },
   "entity": {
     "sensor": {
-      "download": {
-        "name": "Скачивание"
-      },
-      "upload": {
-        "name": "Отдача"
-      },
-      "ping": {
-        "name": "Пинг"
-      },
-      "jitter": {
-        "name": "Джиттер"
-      }
+      "download": { "name": "Скачивание" },
+      "upload": { "name": "Отдача" },
+      "ping": { "name": "Пинг" },
+      "jitter": { "name": "Джиттер" },
+      "last_test": { "name": "Последний тест" }
     },
     "button": {
-      "run_test": {
-        "name": "Запустить тест"
-      }
+      "run_test": { "name": "Запустить тест" }
     }
   }
 }

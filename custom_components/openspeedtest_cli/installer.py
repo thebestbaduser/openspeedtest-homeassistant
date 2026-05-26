@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 import os
 
+import aiohttp
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
 
-from .const import CLI_DOWNLOAD_URL
+from .const import CLI_DOWNLOAD_TIMEOUT, CLI_DOWNLOAD_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +26,8 @@ def _normalize_cli_content(content: bytes) -> bytes:
 async def async_install_cli(hass: HomeAssistant, destination: str) -> None:
     """Download openspeedtest-cli to a persistent path."""
     session = aiohttp_client.async_get_clientsession(hass)
-    async with session.get(CLI_DOWNLOAD_URL, timeout=60) as response:
+    timeout = aiohttp.ClientTimeout(total=CLI_DOWNLOAD_TIMEOUT)
+    async with session.get(CLI_DOWNLOAD_URL, timeout=timeout) as response:
         response.raise_for_status()
         content = _normalize_cli_content(await response.read())
 

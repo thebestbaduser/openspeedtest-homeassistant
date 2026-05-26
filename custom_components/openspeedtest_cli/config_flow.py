@@ -16,6 +16,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
+    CLI_HELP_TIMEOUT,
     CONF_API_KEY,
     CONF_BINARY_PATH,
     CONF_DURATION,
@@ -142,7 +143,7 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
         )
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             process.communicate(),
-            timeout=30,
+            timeout=CLI_HELP_TIMEOUT,
         )
     except FileNotFoundError:
         errors[CONF_BINARY_PATH] = "not_found"

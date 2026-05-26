@@ -45,23 +45,14 @@
   },
   "entity": {
     "sensor": {
-      "download": {
-        "name": "Download"
-      },
-      "upload": {
-        "name": "Upload"
-      },
-      "ping": {
-        "name": "Ping"
-      },
-      "jitter": {
-        "name": "Jitter"
-      }
+      "download": { "name": "Download" },
+      "upload": { "name": "Upload" },
+      "ping": { "name": "Ping" },
+      "jitter": { "name": "Jitter" },
+      "last_test": { "name": "Last test" }
     },
     "button": {
-      "run_test": {
-        "name": "Run speed test"
-      }
+      "run_test": { "name": "Run speed test" }
     }
   }
 }
