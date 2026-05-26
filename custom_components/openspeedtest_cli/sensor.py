@@ -11,7 +11,6 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfDataRate, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -32,13 +31,15 @@ from .const import (
 )
 from .coordinator import OpenSpeedTestCoordinator, SpeedtestResult
 
+UNIT_MEGABITS_PER_SECOND_RU = "Мбит/с"
+UNIT_MILLISECONDS_RU = "мс"
+
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key=SENSOR_DOWNLOAD,
         translation_key=SENSOR_DOWNLOAD,
         icon="mdi:download-network",
-        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
-        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UNIT_MEGABITS_PER_SECOND_RU,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
     ),
@@ -46,8 +47,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         key=SENSOR_UPLOAD,
         translation_key=SENSOR_UPLOAD,
         icon="mdi:upload-network",
-        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
-        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UNIT_MEGABITS_PER_SECOND_RU,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
     ),
@@ -55,8 +55,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         key=SENSOR_PING,
         translation_key=SENSOR_PING,
         icon="mdi:lan-pending",
-        native_unit_of_measurement=UnitOfTime.MILLISECONDS,
-        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UNIT_MILLISECONDS_RU,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
     ),
@@ -64,8 +63,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         key=SENSOR_JITTER,
         translation_key=SENSOR_JITTER,
         icon="mdi:chart-timeline-variant",
-        native_unit_of_measurement=UnitOfTime.MILLISECONDS,
-        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UNIT_MILLISECONDS_RU,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
     ),
