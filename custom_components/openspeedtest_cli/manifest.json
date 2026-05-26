@@ -1,13 +1,17 @@
 {
   "domain": "openspeedtest_cli",
   "name": "OpenSpeedTest CLI",
-  "codeowners": ["@thebestbaduser"],
+  "codeowners": [
+    "@thebestbaduser"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/thebestbaduser/openspeedtest-homeassistant",
   "integration_type": "service",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/thebestbaduser/openspeedtest-homeassistant/issues",
-  "loggers": ["custom_components.openspeedtest_cli"],
+  "loggers": [
+    "custom_components.openspeedtest_cli"
+  ],
   "requirements": [],
-  "version": "1.2.0"
+  "version": "1.2.1"
 }
