@@ -1,5 +1,10 @@
 # OpenSpeedTest CLI для Home Assistant
 
+[![Validate](https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/workflows/validate.yml/badge.svg)](https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/workflows/validate.yml)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/thebestbaduser/openspeedtest-homeassistant)](https://github.com/thebestbaduser/openspeedtest-homeassistant/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Кастомная интеграция для [Home Assistant](https://www.home-assistant.io/), которая запускает [OpenSpeedTest CLI](https://openspeedtest.ru/cli/) и публикует результаты замеров в виде сущностей.
 
 **Репозиторий:** https://github.com/thebestbaduser/openspeedtest-homeassistant

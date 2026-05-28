@@ -1,8 +1,6 @@
 {
   "name": "OpenSpeedTest CLI",
-  "render_readme": true,
-  "homeassistant": "2023.8.0",
   "country": "RU",
-  "domains": ["sensor", "button"],
-  "iot_class": "local_polling"
+  "homeassistant": "2024.12.0",
+  "render_readme": true
 }
