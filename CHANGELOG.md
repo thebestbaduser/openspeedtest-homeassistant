@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] — 2026-06-07
+
+### Changed
+
+- Restored SI units (`Mbit/s`, `ms`) and `device_class` on measurement
+  sensors. Home Assistant localises unit symbols in the UI; hardcoded
+  Cyrillic abbreviations broke multilingual setups and disabled automatic
+  unit conversion.
+
+### Fixed
+
+- Zero-speed warning log now includes the selected server name.
+
 ## [1.3.0] — 2026-05-28
 
 ### Added

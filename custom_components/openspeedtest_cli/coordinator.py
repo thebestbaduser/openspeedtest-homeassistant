@@ -103,10 +103,11 @@ def parse_cli_output(output: str) -> SpeedtestResult:
 
     if result.download == 0 and result.upload == 0:
         _LOGGER.warning(
-            "OpenSpeedTest CLI reported 0 Mbps for both download and upload. "
-            "Check network access from Home Assistant to the selected server"
+            "OpenSpeedTest CLI (%s): download and upload are both 0 Mbps. "
+            "Check network access from Home Assistant to the test server",
+            server,
         )
-        _LOGGER.debug("CLI stdout for zero-speed result:\n%s", output)
+        _LOGGER.debug("CLI stdout for zero-speed result on server %s:\n%s", server, output)
 
     return result
 
