@@ -302,7 +302,8 @@ chmod +x /config/openspeedtest-cli
 - **Home Assistant 2026.3+** — `custom_components/openspeedtest_cli/brand/icon.png` и `logo.png` (страница интеграций и устройств)
 
 Подробный чеклист для подачи в официальный каталог HACS — в
-[HACS_SUBMISSION.md](HACS_SUBMISSION.md).
+[HACS_SUBMISSION.md](HACS_SUBMISSION.md). Готовый текст PR для
+`hacs/default` — в [HACS_DEFAULT_PR.md](HACS_DEFAULT_PR.md).
 
 ## Лицензия
 

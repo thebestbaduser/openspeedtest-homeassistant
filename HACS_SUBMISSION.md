@@ -51,11 +51,11 @@ Before submitting, open the **Actions** tab and confirm the latest
 `Validate` run on `main` is green for **both** `HACS validation` and
 `Hassfest validation`.
 
-**Latest green run (after docs update on `main`):**
+**Latest green run (on `main`):**
 
-- Workflow run: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257345600>
-- HACS validation: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257345600/job/83723665768>
-- Hassfest validation: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257345600/job/83723665720>
+- Workflow run: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430>
+- HACS validation: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742456>
+- Hassfest validation: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742402>
 
 ## 3. Create the first GitHub release
 
@@ -88,9 +88,9 @@ with auto-generated notes. To do it manually:
    - **Link to current release:**
      `https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.2`
    - **Link to successful HACS action run:**
-     <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257345600/job/83723665768>
+     <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742456>
    - **Link to successful Hassfest run:**
-     <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257345600/job/83723665720>
+     <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742402>
 
 5. Tick every checkbox in the checklist section.
 6. Mark the PR as **Ready for review**.
