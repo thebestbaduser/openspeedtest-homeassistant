@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 
 import aiohttp
 
@@ -23,8 +24,18 @@ def _normalize_cli_content(content: bytes) -> bytes:
     return content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
 
+def _validate_destination(destination: str) -> None:
+    """Reject empty or relative install destinations."""
+    if not destination or not os.path.isabs(destination):
+        raise ValueError("CLI install path must be an absolute path")
+    if destination.endswith(os.sep) or os.path.basename(destination) in ("", ".", ".."):
+        raise ValueError("CLI install path must point to a file")
+
+
 async def async_install_cli(hass: HomeAssistant, destination: str) -> None:
     """Download openspeedtest-cli to a persistent path."""
+    _validate_destination(destination)
+
     session = aiohttp_client.async_get_clientsession(hass)
     timeout = aiohttp.ClientTimeout(total=CLI_DOWNLOAD_TIMEOUT)
     async with session.get(CLI_DOWNLOAD_URL, timeout=timeout) as response:
@@ -38,9 +49,23 @@ async def async_install_cli(hass: HomeAssistant, destination: str) -> None:
         directory = os.path.dirname(destination)
         if directory:
             os.makedirs(directory, exist_ok=True)
-        with open(destination, "wb") as file:
-            file.write(content)
-        os.chmod(destination, 0o755)
+
+        fd, temp_path = tempfile.mkstemp(
+            dir=directory or None,
+            prefix=".openspeedtest-cli-",
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(fd, "wb") as file:
+                file.write(content)
+            os.chmod(temp_path, 0o755)
+            os.replace(temp_path, destination)
+        except Exception:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
 
     await hass.async_add_executor_job(_write)
     _LOGGER.info("Installed OpenSpeedTest CLI to %s", destination)

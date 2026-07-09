@@ -2,23 +2,42 @@
 
 from __future__ import annotations
 
-import logging
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 
-from .const import DOMAIN, PLATFORMS
+from .const import (
+    CONFIGURATION_URL,
+    DEVICE_MANUFACTURER,
+    DEVICE_MODEL,
+    DEVICE_NAME,
+    DOMAIN,
+    PLATFORMS,
+)
 from .coordinator import OpenSpeedTestCoordinator
 
-_LOGGER = logging.getLogger(__name__)
+type OpenSpeedTestConfigEntry = ConfigEntry[OpenSpeedTestCoordinator]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+def build_device_info(entry: ConfigEntry) -> DeviceInfo:
+    """Return shared device metadata for all entities."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=DEVICE_NAME,
+        manufacturer=DEVICE_MANUFACTURER,
+        model=DEVICE_MODEL,
+        configuration_url=CONFIGURATION_URL,
+    )
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: OpenSpeedTestConfigEntry
+) -> bool:
     """Set up OpenSpeedTest CLI from a config entry."""
     coordinator = OpenSpeedTestCoordinator(hass, entry)
     await coordinator.async_load_cached()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -29,14 +48,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: OpenSpeedTestConfigEntry
+) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_reload_entry(
+    hass: HomeAssistant, entry: OpenSpeedTestConfigEntry
+) -> None:
     """Reload config entry when options change."""
     await hass.config_entries.async_reload(entry.entry_id)

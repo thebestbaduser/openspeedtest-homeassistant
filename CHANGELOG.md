@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] — 2026-07-09
+
+### Fixed
+
+- API key is redacted from debug logs when building the CLI command.
+- Config/options flow now require an API key when result submission is enabled.
+- Hung CLI processes are terminated gracefully before force-kill on timeout.
+- Concurrent scheduled and manual tests are serialized with a lock.
+- CLI install writes atomically and rejects non-absolute destinations.
+- Binary path existence checks no longer block the event loop.
+
+### Changed
+
+- Store the coordinator in `ConfigEntry.runtime_data` instead of `hass.data`.
+- Use `Platform` enums and `ConfigFlowResult` typing.
+- Share device metadata via a single helper for sensors and the run button.
+
+### Added
+
+- Unit tests for CLI output parsing, cache round-trip, command redaction,
+  installer path checks, and submit/API-key validation.
+
 ## [1.3.2] — 2026-06-10
 
 ### Changed
