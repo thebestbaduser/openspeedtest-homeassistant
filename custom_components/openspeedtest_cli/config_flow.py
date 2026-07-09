@@ -9,10 +9,9 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
@@ -99,6 +98,15 @@ def _normalize_optional_int(value: Any) -> int | None:
     return int(value)
 
 
+def _validate_submit_settings(user_input: dict[str, Any]) -> dict[str, str]:
+    """Require an API key when result submission is enabled."""
+    if user_input.get(CONF_SUBMIT_RESULTS) and not (
+        user_input.get(CONF_API_KEY) or ""
+    ).strip():
+        return {CONF_API_KEY: "api_key_required"}
+    return {}
+
+
 def _suggested_options(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     """Build suggested values for the options form."""
     suggested = {**entry.data, **entry.options}
@@ -130,9 +138,22 @@ def _suggested_options(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any
     return suggested
 
 
+async def _path_exists(path: str) -> bool:
+    """Check path existence off the event loop."""
+    return await asyncio.to_thread(os.path.exists, path)
+
+
 async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, str]:
     """Validate that the CLI binary exists and responds."""
     errors: dict[str, str] = {}
+
+    if not binary_path or not os.path.isabs(binary_path):
+        errors[CONF_BINARY_PATH] = "not_found"
+        return errors
+
+    if not await _path_exists(binary_path):
+        errors[CONF_BINARY_PATH] = "not_found"
+        return errors
 
     try:
         process = await asyncio.create_subprocess_exec(
@@ -141,14 +162,22 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+    except FileNotFoundError:
+        errors[CONF_BINARY_PATH] = "not_found"
+        return errors
+    except OSError:
+        errors[CONF_BINARY_PATH] = "invalid"
+        return errors
+
+    try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             process.communicate(),
             timeout=CLI_HELP_TIMEOUT,
         )
-    except FileNotFoundError:
-        errors[CONF_BINARY_PATH] = "not_found"
-        return errors
     except TimeoutError:
+        if process.returncode is None:
+            process.kill()
+            await process.wait()
         errors["base"] = "timeout"
         return errors
 
@@ -170,22 +199,24 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
         recommended_path = get_recommended_cli_path(self.hass.config.config_dir)
 
         if user_input is not None:
             binary_path = user_input[CONF_BINARY_PATH]
+            errors.update(_validate_submit_settings(user_input))
 
-            if user_input.get(CONF_INSTALL_CLI):
+            if not errors and user_input.get(CONF_INSTALL_CLI):
                 try:
                     await async_install_cli(self.hass, binary_path)
-                except Exception as err:
+                except ValueError:
+                    _LOGGER.exception("Invalid OpenSpeedTest CLI download")
+                    errors["base"] = "invalid_download"
+                except Exception:
                     _LOGGER.exception("Failed to install OpenSpeedTest CLI")
                     errors["base"] = "download_failed"
-                    if isinstance(err, ValueError):
-                        errors["base"] = "invalid_download"
 
             if not errors:
                 errors = await _validate_binary(self.hass, binary_path)
@@ -193,7 +224,7 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
             if not errors:
                 await self.async_set_unique_id(binary_path)
                 self._abort_if_unique_id_configured()
-                api_key = user_input.get(CONF_API_KEY) or None
+                api_key = (user_input.get(CONF_API_KEY) or "").strip() or None
                 return self.async_create_entry(
                     title="OpenSpeedTest CLI",
                     data={
@@ -222,7 +253,7 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_BINARY_PATH, default=recommended_path): str,
                 vol.Optional(
                     CONF_INSTALL_CLI,
-                    default=not os.path.exists(recommended_path),
+                    default=not await _path_exists(recommended_path),
                 ): bool,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
@@ -256,10 +287,14 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
-            errors = await _validate_binary(self.hass, user_input[CONF_BINARY_PATH])
+            errors = _validate_submit_settings(user_input)
+            if not errors:
+                errors = await _validate_binary(
+                    self.hass, user_input[CONF_BINARY_PATH]
+                )
             if errors:
                 return self.async_show_form(
                     step_id="init",
@@ -285,7 +320,7 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
                     user_input.get(CONF_SERVER_ID)
                 ),
                 CONF_SUBMIT_RESULTS: user_input.get(CONF_SUBMIT_RESULTS, False),
-                CONF_API_KEY: user_input.get(CONF_API_KEY) or None,
+                CONF_API_KEY: (user_input.get(CONF_API_KEY) or "").strip() or None,
             }
 
             if options[CONF_SERVER_ID] is None:

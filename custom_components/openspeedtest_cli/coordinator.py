@@ -85,7 +85,7 @@ def parse_cli_output(output: str) -> SpeedtestResult:
         )
         if value is None
     ]
-    if missing:
+    if missing or ping is None or jitter is None or download is None or upload is None:
         raise ValueError(
             f"Failed to parse CLI output, missing fields: {', '.join(missing)}"
         )
@@ -142,6 +142,23 @@ def result_from_dict(data: dict[str, Any]) -> SpeedtestResult:
     )
 
 
+def _redact_command(command: list[str]) -> str:
+    """Return a log-safe representation of the CLI command."""
+    redacted: list[str] = []
+    skip_next = False
+    for part in command:
+        if skip_next:
+            redacted.append("***")
+            skip_next = False
+            continue
+        if part == "--api-key":
+            redacted.append(part)
+            skip_next = True
+            continue
+        redacted.append(part)
+    return " ".join(redacted)
+
+
 class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
     """Fetch speed test data by running openspeedtest-cli."""
 
@@ -156,11 +173,13 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             f"{DOMAIN}.{entry.entry_id}",
         )
         self._unsub_timer: CALLBACK_TYPE | None = None
+        self._test_lock = asyncio.Lock()
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=None,
+            config_entry=entry,
         )
 
     @property
@@ -226,12 +245,12 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             self._unsub_timer()
             self._unsub_timer = None
 
-    async def _async_run_scheduled(self, _now) -> None:
+    async def _async_run_scheduled(self, _now: datetime) -> None:
         """Run a speed test when the interval elapsed and reschedule."""
         self._unsub_timer = None
         try:
             if self.needs_refresh():
-                await self.async_refresh()
+                await self.async_request_refresh()
         finally:
             self.async_start_scheduler()
 
@@ -267,9 +286,14 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
 
     async def _async_update_data(self) -> SpeedtestResult:
         """Run speed test and return parsed results."""
+        async with self._test_lock:
+            return await self._async_run_speedtest()
+
+    async def _async_run_speedtest(self) -> SpeedtestResult:
+        """Execute openspeedtest-cli and parse its output."""
         command = self._build_command()
         timeout = self._calculate_timeout()
-        _LOGGER.debug("Running OpenSpeedTest CLI: %s", " ".join(command))
+        _LOGGER.debug("Running OpenSpeedTest CLI: %s", _redact_command(command))
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -282,6 +306,10 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
                 f"OpenSpeedTest CLI not found at '{command[0]}'. "
                 "Check the binary path in integration settings."
             ) from err
+        except OSError as err:
+            raise UpdateFailed(
+                f"Failed to start OpenSpeedTest CLI at '{command[0]}': {err}"
+            ) from err
 
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
@@ -289,8 +317,7 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
                 timeout=timeout,
             )
         except TimeoutError as err:
-            process.kill()
-            await process.wait()
+            await self._async_kill_process(process)
             raise UpdateFailed(
                 f"Speed test timed out after {timeout} seconds"
             ) from err
@@ -313,3 +340,15 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
 
         await self._store.async_save(result_to_dict(result))
         return result
+
+    async def _async_kill_process(self, process: asyncio.subprocess.Process) -> None:
+        """Terminate a hung CLI process, escalating to kill if needed."""
+        if process.returncode is not None:
+            return
+
+        process.terminate()
+        try:
+            await asyncio.wait_for(process.wait(), timeout=5)
+        except TimeoutError:
+            process.kill()
+            await process.wait()

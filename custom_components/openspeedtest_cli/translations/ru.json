@@ -21,7 +21,8 @@
       "invalid": "Указанный файл не похож на openspeedtest-cli",
       "timeout": "Превышено время ожидания при проверке CLI",
       "download_failed": "Не удалось скачать openspeedtest-cli",
-      "invalid_download": "Скачанный файл не является скриптом openspeedtest-cli"
+      "invalid_download": "Скачанный файл не является скриптом openspeedtest-cli",
+      "api_key_required": "API-ключ обязателен при отправке результатов"
     },
     "abort": {
       "already_configured": "Этот CLI уже настроен"
@@ -41,6 +42,12 @@
           "api_key": "API-ключ (нужен при отправке результатов)"
         }
       }
+    },
+    "error": {
+      "not_found": "CLI не найден по указанному пути",
+      "invalid": "Указанный файл не похож на openspeedtest-cli",
+      "timeout": "Превышено время ожидания при проверке CLI",
+      "api_key_required": "API-ключ обязателен при отправке результатов"
     }
   },
   "entity": {

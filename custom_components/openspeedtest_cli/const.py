@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from homeassistant.const import Platform
+
 DOMAIN = "openspeedtest_cli"
 
 CONF_BINARY_PATH = "binary_path"
@@ -27,7 +29,6 @@ MIN_SCHEDULE_DELAY = 60
 STARTUP_TEST_DELAY = 30
 
 ATTR_SERVER = "server"
-ATTR_LAST_RUN = "last_run"
 
 SENSOR_DOWNLOAD = "download"
 SENSOR_UPLOAD = "upload"
@@ -35,7 +36,7 @@ SENSOR_PING = "ping"
 SENSOR_JITTER = "jitter"
 SENSOR_LAST_TEST = "last_test"
 
-PLATFORMS = ["sensor", "button"]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 
 STORAGE_VERSION = 1
 

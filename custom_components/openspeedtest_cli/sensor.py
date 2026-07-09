@@ -10,20 +10,14 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfDataRate, UnitOfTime
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import OpenSpeedTestConfigEntry, build_device_info
 from .const import (
     ATTR_SERVER,
-    CONFIGURATION_URL,
-    DEVICE_MANUFACTURER,
-    DEVICE_MODEL,
-    DEVICE_NAME,
-    DOMAIN,
     SENSOR_DOWNLOAD,
     SENSOR_JITTER,
     SENSOR_LAST_TEST,
@@ -80,11 +74,11 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: OpenSpeedTestConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up OpenSpeedTest CLI sensors."""
-    coordinator: OpenSpeedTestCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(
         OpenSpeedTestSensor(coordinator, entry, description)
         for description in SENSOR_TYPES
@@ -100,20 +94,14 @@ class OpenSpeedTestSensor(CoordinatorEntity[OpenSpeedTestCoordinator], SensorEnt
     def __init__(
         self,
         coordinator: OpenSpeedTestCoordinator,
-        entry: ConfigEntry,
+        entry: OpenSpeedTestConfigEntry,
         description: SensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=DEVICE_NAME,
-            manufacturer=DEVICE_MANUFACTURER,
-            model=DEVICE_MODEL,
-            configuration_url=CONFIGURATION_URL,
-        )
+        self._attr_device_info = build_device_info(entry)
 
     @property
     def available(self) -> bool:
