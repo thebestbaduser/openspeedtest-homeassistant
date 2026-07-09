@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -19,8 +17,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify integration manifest
+        run: |
+          set -euo pipefail
+          manifest="custom_components/openspeedtest_cli/manifest.json"
+          test -f "$manifest"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path("custom_components/openspeedtest_cli/manifest.json").read_text())
+          required = ("domain", "name", "documentation", "codeowners", "iot_class", "version")
+          missing = [key for key in required if key not in data]
+          if missing:
+              raise SystemExit(f"manifest.json missing keys: {', '.join(missing)}")
+          if data["domain"] != "openspeedtest_cli":
+              raise SystemExit(f"unexpected domain: {data['domain']}")
+          print(f"manifest ok: domain={data['domain']} version={data['version']}")
+          PY
+
       - name: HACS Action
-        uses: hacs/action@main
+        uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa
         with:
           category: integration
 
