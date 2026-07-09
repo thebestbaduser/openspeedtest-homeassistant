@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `brand/icon@2x.png` (512×512)
   - `brand/logo.png` (256×128)
   - `brand/logo@2x.png` (512×256)
-- GitHub Actions: HACS validation and Hassfest on every push, PR and daily.
+- GitHub Actions: HACS validation and Hassfest on every push and PR.
 - Automatic GitHub release when pushing a `v*` tag.
 - `CHANGELOG.md`.
 
