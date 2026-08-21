@@ -1,15 +1,17 @@
-# HACS default PR — copy-paste template
+# HACS default PR — copy-paste after Validate is green
 
-Use this when opening a PR at <https://github.com/hacs/default/compare>.
+Open the PR from a **personal** fork of `hacs/default`, not from an
+organisation. Fill in the `<>` links from the **green** Validate run on
+`main` for tag `v1.3.5` — do not reuse the old `v1.3.4` / run
+`28257954430` links.
 
 ## 1. Fork and branch
-
-1. Open <https://github.com/hacs/default> → **Fork** (personal account only).
-2. Clone your fork, create a branch from `master`:
 
 ```bash
 git clone https://github.com/thebestbaduser/default.git
 cd default
+git checkout master
+git pull origin master
 git checkout -b add-openspeedtest-homeassistant
 ```
 
@@ -37,7 +39,11 @@ git commit -m "Adds new integration [thebestbaduser/openspeedtest-homeassistant]
 git push -u origin add-openspeedtest-homeassistant
 ```
 
-## 4. Open PR — body text
+## 4. PR body
+
+Replace every `<>` with a real URL before submitting. Tick the boxes
+only after the linked jobs are green and `v1.3.5` is a published
+GitHub **release**.
 
 ```markdown
 ## Checklist
@@ -51,17 +57,19 @@ git push -u origin add-openspeedtest-homeassistant
 
 ## Links
 
-Link to current release: https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.4
+Link to current release: https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.5
 
-Link to successful HACS action (without the `ignore` key): https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742456
+Link to successful HACS action (without the `ignore` key): <>
 
-Link to successful hassfest action (if integration): https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742402
+Link to successful hassfest action (if integration): <>
 ```
 
-5. Mark PR **Ready for review**.
+5. Mark the PR **Ready for review**.
 
-## 5. Before submitting — GitHub About (manual)
+## 5. GitHub About (if still missing)
 
-On <https://github.com/thebestbaduser/openspeedtest-homeassistant> add topics if missing:
+On the repo homepage: description, Issues enabled, topics:
 
-`internet-speed`, `custom-component`, `python`
+`home-assistant`, `hacs`, `hacs-integration`, `integration`,
+`openspeedtest`, `speedtest`, `internet-speed`, `custom-component`,
+`python`

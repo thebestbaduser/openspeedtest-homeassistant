@@ -302,7 +302,7 @@ chmod +x /config/openspeedtest-cli
 
 ### Актуальная версия
 
-Текущий релиз — **1.3.4**. См. [Releases](https://github.com/thebestbaduser/openspeedtest-homeassistant/releases)
+Текущий релиз — **1.3.5**. См. [Releases](https://github.com/thebestbaduser/openspeedtest-homeassistant/releases)
 и [CHANGELOG.md](CHANGELOG.md).
 
 ---

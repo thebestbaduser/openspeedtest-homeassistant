@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] — 2026-08-21
+
+### Fixed
+
+- Config/options helper text no longer embeds a raw URL (hassfest
+  translations check). Official HACS submission needs a green Validate
+  run and a GitHub release created after that run.
+
+### Changed
+
+- `hacs.json` keeps only documented keys (`name`, `country`,
+  `homeassistant`).
+
 ## [1.3.4] — 2026-08-21
 
 ### Security

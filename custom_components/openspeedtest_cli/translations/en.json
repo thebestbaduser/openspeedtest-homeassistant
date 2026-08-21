@@ -16,7 +16,7 @@
         },
         "data_description": {
           "binary_path": "Use a path inside the Home Assistant config directory so the CLI survives container updates.",
-          "install_cli": "Downloads https://openspeedtest.ru/cli/openspeedtest-cli after checking host, size and script signature.",
+          "install_cli": "Downloads {cli_url} after checking host, size and script signature.",
           "scan_interval": "Minimum 900 seconds. Speed tests saturate the uplink and downlink while they run.",
           "server_id": "Leave empty to pick the lowest-latency server. Use --list-servers on the CLI to see IDs.",
           "api_key": "64 hexadecimal characters from your OpenSpeedTest.ru account. Not placed on the process command line."

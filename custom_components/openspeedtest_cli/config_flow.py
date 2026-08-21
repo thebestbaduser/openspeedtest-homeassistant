@@ -16,6 +16,7 @@ from homeassistant.helpers import selector
 
 from .api_key import normalize_api_key, validate_submit_settings
 from .const import (
+    CLI_DOWNLOAD_URL,
     CLI_HELP_TIMEOUT,
     CONF_API_KEY,
     CONF_BINARY_PATH,
@@ -282,7 +283,10 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=schema,
             errors=errors,
-            description_placeholders={"config_path": recommended_path},
+            description_placeholders={
+                "config_path": recommended_path,
+                "cli_url": CLI_DOWNLOAD_URL,
+            },
         )
 
     @staticmethod
