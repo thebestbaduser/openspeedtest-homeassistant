@@ -30,10 +30,11 @@
       "download_failed": "Не удалось скачать openspeedtest-cli",
       "invalid_download": "Скачанный файл не является скриптом openspeedtest-cli",
       "api_key_required": "API-ключ обязателен при отправке результатов",
-      "api_key_invalid": "API-ключ должен состоять из 64 шестнадцатеричных символов"
+      "api_key_invalid": "API-ключ должен состоять из 64 шестнадцатеричных символов",
+      "not_in_config": "Автоустановка CLI разрешена только внутри директории config Home Assistant"
     },
     "abort": {
-      "already_configured": "Этот CLI уже настроен"
+      "already_configured": "OpenSpeedTest CLI уже настроен"
     }
   },
   "options": {

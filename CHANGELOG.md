@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and must be 64 hex characters.
 - Options flow can remove a stored API key; empty options override `entry.data`.
 - Isolated CLI HOME and result cache are deleted when the integration is removed.
+- Automatic CLI install must write inside the Home Assistant config directory.
 
 ### Fixed
 
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Config entry diagnostics (API key redacted).
+- Config entry v2: a single unique_id (`openspeedtest_cli`) for the service.
 
 ### Changed
 
@@ -36,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hassfest and `actions/checkout` are pinned by commit SHA.
 - Config/options forms include `data_description` helper text.
 - Download, ping and related sensors set `PARALLEL_UPDATES = 0`.
+- Release workflow pins `softprops/action-gh-release` by commit SHA.
 
 ## [1.3.3] — 2026-07-09
 

@@ -18,6 +18,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     STORAGE_VERSION,
+    get_cli_runtime_home,
 )
 from .coordinator import OpenSpeedTestCoordinator
 
@@ -53,6 +54,13 @@ async def async_setup_entry(
     return True
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate unique_id from CLI path to a single domain id."""
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(entry, unique_id=DOMAIN, version=2)
+    return True
+
+
 async def async_unload_entry(
     hass: HomeAssistant, entry: OpenSpeedTestConfigEntry
 ) -> bool:
@@ -62,7 +70,7 @@ async def async_unload_entry(
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove isolated CLI HOME and cached results when the entry is deleted."""
-    runtime_home = os.path.join(hass.config.config_dir, f".{DOMAIN}", entry.entry_id)
+    runtime_home = get_cli_runtime_home(hass.config.config_dir, entry.entry_id)
 
     def _cleanup() -> None:
         shutil.rmtree(runtime_home, ignore_errors=True)

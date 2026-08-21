@@ -30,10 +30,11 @@
       "download_failed": "Failed to download openspeedtest-cli",
       "invalid_download": "Downloaded file is not a valid openspeedtest-cli script",
       "api_key_required": "API key is required when submitting results",
-      "api_key_invalid": "API key must be 64 hexadecimal characters"
+      "api_key_invalid": "API key must be 64 hexadecimal characters",
+      "not_in_config": "Automatic CLI install is only allowed inside the Home Assistant config directory"
     },
     "abort": {
-      "already_configured": "This CLI binary is already configured"
+      "already_configured": "OpenSpeedTest CLI is already configured"
     }
   },
   "options": {

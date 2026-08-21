@@ -14,8 +14,8 @@ from homeassistant.helpers import aiohttp_client
 from .cli_file import (
     CLI_MAX_DOWNLOAD_BYTES,
     assert_allowed_download_url,
+    assert_install_destination,
     validate_cli_content,
-    validate_destination,
 )
 from .const import CLI_DOWNLOAD_TIMEOUT, CLI_DOWNLOAD_URL
 
@@ -46,7 +46,7 @@ async def _read_limited(response: aiohttp.ClientResponse, max_bytes: int) -> byt
 
 async def async_install_cli(hass: HomeAssistant, destination: str) -> None:
     """Download openspeedtest-cli to a persistent path."""
-    validate_destination(destination)
+    assert_install_destination(destination, hass.config.config_dir)
     assert_allowed_download_url(CLI_DOWNLOAD_URL)
 
     session = aiohttp_client.async_get_clientsession(hass)

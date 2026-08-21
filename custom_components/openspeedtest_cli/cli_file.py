@@ -34,6 +34,26 @@ def validate_destination(destination: str) -> None:
         raise ValueError("CLI install path must point to a file")
 
 
+def path_is_inside(path: str, root: str) -> bool:
+    """Return True if path is the root or a file/dir inside root."""
+    real_path = os.path.realpath(path)
+    real_root = os.path.realpath(root)
+    try:
+        common = os.path.commonpath([real_path, real_root])
+    except ValueError:
+        return False
+    return common == real_root
+
+
+def assert_install_destination(destination: str, config_dir: str) -> None:
+    """Require an absolute file path inside the Home Assistant config directory."""
+    validate_destination(destination)
+    if not path_is_inside(destination, config_dir):
+        raise ValueError(
+            "CLI install path must be inside the Home Assistant config directory"
+        )
+
+
 def assert_allowed_download_url(url: str) -> None:
     """Reject downloads that are not HTTPS from openspeedtest.ru."""
     parsed = urlparse(url)

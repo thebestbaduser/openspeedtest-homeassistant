@@ -204,7 +204,7 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
 class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for OpenSpeedTest CLI."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -220,9 +220,12 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
             if not errors and user_input.get(CONF_INSTALL_CLI):
                 try:
                     await async_install_cli(self.hass, binary_path)
-                except ValueError:
+                except ValueError as err:
                     _LOGGER.exception("Invalid OpenSpeedTest CLI download")
-                    errors["base"] = "invalid_download"
+                    if "inside the Home Assistant config directory" in str(err):
+                        errors[CONF_BINARY_PATH] = "not_in_config"
+                    else:
+                        errors["base"] = "invalid_download"
                 except Exception:
                     _LOGGER.exception("Failed to install OpenSpeedTest CLI")
                     errors["base"] = "download_failed"
@@ -231,7 +234,7 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors = await _validate_binary(self.hass, binary_path)
 
             if not errors:
-                await self.async_set_unique_id(binary_path)
+                await self.async_set_unique_id(DOMAIN)
                 self._abort_if_unique_id_configured()
                 api_key = normalize_api_key(user_input.get(CONF_API_KEY))
                 return self.async_create_entry(

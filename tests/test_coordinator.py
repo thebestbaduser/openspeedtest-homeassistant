@@ -158,6 +158,16 @@ class InstallerHelperTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             cli_file.validate_destination("/config/")
 
+    def test_install_must_stay_inside_config_dir(self) -> None:
+        """Automatic install cannot write outside the HA config directory."""
+        cli_file.assert_install_destination("/config/openspeedtest-cli", "/config")
+        with self.assertRaises(ValueError):
+            cli_file.assert_install_destination("/tmp/openspeedtest-cli", "/config")
+        with self.assertRaises(ValueError):
+            cli_file.assert_install_destination(
+                "/config/../tmp/openspeedtest-cli", "/config"
+            )
+
     def test_reject_http_and_foreign_hosts(self) -> None:
         """Only HTTPS openspeedtest.ru is allowed."""
         with self.assertRaises(ValueError):

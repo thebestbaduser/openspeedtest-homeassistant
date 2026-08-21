@@ -31,6 +31,7 @@ from .const import (
     MIN_SCHEDULE_DELAY,
     STARTUP_TEST_DELAY,
     STORAGE_VERSION,
+    get_cli_runtime_home,
     get_recommended_cli_path,
 )
 from .parser import (
@@ -82,10 +83,8 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
 
     def _cli_runtime_home(self) -> str:
         """Return an isolated HOME directory for CLI config.json."""
-        return os.path.join(
-            self.hass.config.config_dir,
-            f".{DOMAIN}",
-            self.config_entry.entry_id,
+        return get_cli_runtime_home(
+            self.hass.config.config_dir, self.config_entry.entry_id
         )
 
     @property

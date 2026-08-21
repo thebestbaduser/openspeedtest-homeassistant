@@ -50,3 +50,8 @@ CONFIGURATION_URL = "https://openspeedtest.ru/cli/"
 def get_recommended_cli_path(config_dir: str) -> str:
     """Return the persistent CLI path inside the Home Assistant config directory."""
     return os.path.join(config_dir, CLI_BINARY_NAME)
+
+
+def get_cli_runtime_home(config_dir: str, entry_id: str) -> str:
+    """Return the isolated HOME used for CLI config.json."""
+    return os.path.join(config_dir, f".{DOMAIN}", entry_id)
