@@ -19,6 +19,7 @@ from .const import (
     CLI_HELP_TIMEOUT,
     CONF_API_KEY,
     CONF_BINARY_PATH,
+    CONF_CLEAR_API_KEY,
     CONF_DURATION,
     CONF_INSTALL_CLI,
     CONF_SERVER_ID,
@@ -88,6 +89,7 @@ OPTIONS_SCHEMA = vol.Schema(
         vol.Required(CONF_DURATION): DURATION_SELECTOR,
         vol.Required(CONF_SUBMIT_RESULTS): bool,
         vol.Optional(CONF_API_KEY): API_KEY_SELECTOR,
+        vol.Optional(CONF_CLEAR_API_KEY, default=False): bool,
     }
 )
 
@@ -139,6 +141,7 @@ def _suggested_options(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any
         CONF_BINARY_PATH, get_recommended_cli_path(hass.config.config_dir)
     )
     suggested.setdefault(CONF_SUBMIT_RESULTS, False)
+    suggested[CONF_CLEAR_API_KEY] = False
 
     return suggested
 
@@ -314,6 +317,12 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
                     errors=errors,
                 )
 
+            new_key = normalize_api_key(user_input.get(CONF_API_KEY))
+            if user_input.get(CONF_CLEAR_API_KEY) and not new_key:
+                stored_key = ""
+            else:
+                stored_key = new_key or existing_key or ""
+
             options = {
                 CONF_BINARY_PATH: user_input[CONF_BINARY_PATH],
                 CONF_SCAN_INTERVAL: _normalize_int(
@@ -329,15 +338,12 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
                     user_input.get(CONF_SERVER_ID)
                 ),
                 CONF_SUBMIT_RESULTS: user_input.get(CONF_SUBMIT_RESULTS, False),
-                CONF_API_KEY: normalize_api_key(user_input.get(CONF_API_KEY))
-                or existing_key,
+                # Empty string overrides a key left in entry.data.
+                CONF_API_KEY: stored_key,
             }
 
             if options[CONF_SERVER_ID] is None:
                 options.pop(CONF_SERVER_ID)
-
-            if not options[CONF_API_KEY]:
-                options.pop(CONF_API_KEY)
 
             return self.async_create_entry(title="", data=options)
 

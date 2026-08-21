@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `--api-key` on the process command line.
 - Config/options API key field is a password selector; values are lowercased
   and must be 64 hex characters.
+- Options flow can remove a stored API key; empty options override `entry.data`.
+- Isolated CLI HOME and result cache are deleted when the integration is removed.
 
 ### Fixed
 
@@ -22,11 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sensors follow `last_update_success` instead of masking a failed refresh
   behind cached values.
 
+### Added
+
+- Config entry diagnostics (API key redacted).
+
 ### Changed
 
 - `iot_class` is `cloud_polling` (the CLI talks to openspeedtest.ru).
 - `last_test` is a diagnostic entity.
 - Unit tests no longer import Home Assistant and run in GitHub Actions.
+- Hassfest and `actions/checkout` are pinned by commit SHA.
+- Config/options forms include `data_description` helper text.
+- Download, ping and related sensors set `PARALLEL_UPDATES = 0`.
 
 ## [1.3.3] — 2026-07-09
 

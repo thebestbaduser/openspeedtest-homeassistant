@@ -33,6 +33,7 @@ parser = _load("ost_parser", "parser.py")
 
 CONF_API_KEY = api_key.CONF_API_KEY
 CONF_SUBMIT_RESULTS = api_key.CONF_SUBMIT_RESULTS
+CONF_CLEAR_API_KEY = api_key.CONF_CLEAR_API_KEY
 
 SAMPLE_OUTPUT = """\
 OpenSpeedTest CLI
@@ -228,6 +229,30 @@ class SubmitValidationTests(unittest.TestCase):
             {CONF_SUBMIT_RESULTS: True, CONF_API_KEY: "not-a-key"}
         )
         self.assertEqual(errors, {CONF_API_KEY: "api_key_invalid"})
+
+    def test_clear_flag_drops_existing_key(self) -> None:
+        """Clearing the stored key is rejected when submission stays on."""
+        errors = api_key.validate_submit_settings(
+            {
+                CONF_SUBMIT_RESULTS: True,
+                CONF_API_KEY: "",
+                CONF_CLEAR_API_KEY: True,
+            },
+            existing_api_key=VALID_API_KEY,
+        )
+        self.assertEqual(errors, {CONF_API_KEY: "api_key_required"})
+
+    def test_clear_allowed_when_submit_disabled(self) -> None:
+        """The stored key can be removed when results are not submitted."""
+        errors = api_key.validate_submit_settings(
+            {
+                CONF_SUBMIT_RESULTS: False,
+                CONF_API_KEY: "",
+                CONF_CLEAR_API_KEY: True,
+            },
+            existing_api_key=VALID_API_KEY,
+        )
+        self.assertEqual(errors, {})
 
 
 class CliRuntimeConfigTests(unittest.TestCase):

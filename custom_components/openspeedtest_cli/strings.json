@@ -13,6 +13,13 @@
           "duration": "Download/upload duration (seconds)",
           "submit_results": "Submit results to OpenSpeedTest.ru",
           "api_key": "API key (required if submitting results)"
+        },
+        "data_description": {
+          "binary_path": "Use a path inside the Home Assistant config directory so the CLI survives container updates.",
+          "install_cli": "Downloads https://openspeedtest.ru/cli/openspeedtest-cli after checking host, size and script signature.",
+          "scan_interval": "Minimum 900 seconds. Speed tests saturate the uplink and downlink while they run.",
+          "server_id": "Leave empty to pick the lowest-latency server. Use --list-servers on the CLI to see IDs.",
+          "api_key": "64 hexadecimal characters from your OpenSpeedTest.ru account. Not placed on the process command line."
         }
       }
     },
@@ -40,7 +47,12 @@
           "threads": "Number of test threads",
           "duration": "Download/upload duration (seconds)",
           "submit_results": "Submit results to OpenSpeedTest.ru",
-          "api_key": "API key (required if submitting results)"
+          "api_key": "API key (required if submitting results)",
+          "clear_api_key": "Remove the stored API key"
+        },
+        "data_description": {
+          "api_key": "Leave empty to keep the current key. Enter a new 64-character hex key to replace it.",
+          "clear_api_key": "Deletes the stored key. Turn off result submission first, or enter a new key in the same form."
         }
       }
     },

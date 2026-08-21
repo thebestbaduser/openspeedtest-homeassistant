@@ -27,6 +27,8 @@ from .const import (
 )
 from .coordinator import OpenSpeedTestCoordinator, SpeedtestResult
 
+PARALLEL_UPDATES = 0
+
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key=SENSOR_DOWNLOAD,

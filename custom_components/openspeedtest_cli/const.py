@@ -15,6 +15,7 @@ CONF_THREADS = "threads"
 CONF_DURATION = "duration"
 CONF_SUBMIT_RESULTS = "submit_results"
 CONF_API_KEY = "api_key"
+CONF_CLEAR_API_KEY = "clear_api_key"
 
 CLI_BINARY_NAME = "openspeedtest-cli"
 CLI_DOWNLOAD_URL = "https://openspeedtest.ru/cli/openspeedtest-cli"

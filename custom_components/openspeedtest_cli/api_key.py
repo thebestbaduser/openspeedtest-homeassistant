@@ -10,6 +10,7 @@ from typing import Any
 
 CONF_API_KEY = "api_key"
 CONF_SUBMIT_RESULTS = "submit_results"
+CONF_CLEAR_API_KEY = "clear_api_key"
 
 API_KEY_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -34,6 +35,9 @@ def validate_submit_settings(
     existing_api_key: str | None = None,
 ) -> dict[str, str]:
     """Validate API key format and require it when submission is enabled."""
+    if user_input.get(CONF_CLEAR_API_KEY):
+        existing_api_key = None
+
     raw = user_input.get(CONF_API_KEY)
     if raw not in (None, "") and not is_valid_api_key(raw):
         return {CONF_API_KEY: "api_key_invalid"}
