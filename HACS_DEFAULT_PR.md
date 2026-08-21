@@ -51,7 +51,7 @@ git push -u origin add-openspeedtest-homeassistant
 
 ## Links
 
-Link to current release: https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.2
+Link to current release: https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.4
 
 Link to successful HACS action (without the `ignore` key): https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742456
 

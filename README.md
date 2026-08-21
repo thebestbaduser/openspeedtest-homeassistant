@@ -62,6 +62,14 @@ https://openspeedtest.ru/cli/openspeedtest-cli
 
 CLI — один Python-скрипт без внешних зависимостей (версия 2.0 на сайте, июнь 2026).
 
+## Безопасность
+
+Интеграция **скачивает и запускает** скрипт с [openspeedtest.ru](https://openspeedtest.ru/). Перед записью на диск она проверяет HTTPS-хост, размер файла и сигнатуру `OpenSpeedTest.ru CLI`. Публичной контрольной суммы на сайте нет.
+
+Сам CLI **отключает проверку SSL-сертификатов** (`ssl._create_unverified_context`). Это поведение апстрима: трафик замера и, при отправке, API-ключ могут быть перехвачены при MITM. Не включайте «Submit results» в недоверенной сети.
+
+API-ключ не передаётся в argv: интеграция пишет его в `config.json` внутри изолированного `HOME` (`/config/.openspeedtest_cli/<entry_id>/`) с правами `600`.
+
 ---
 
 ## Установка через HACS
@@ -87,7 +95,7 @@ CLI — один Python-скрипт без внешних зависимост�
 | Download CLI | Включить, если файла ещё нет |
 | Scan interval | `21600` (6 ч), минимум `900` (15 мин) |
 | Submit results | Выключено, если не нужна отправка на сайт |
-| API key | 64 hex-символа из [личного кабинета](https://openspeedtest.ru/) |
+| API key | 64 hex-символа (`[0-9a-f]`) из [личного кабинета](https://openspeedtest.ru/) |
 
 При включённой отправке результаты появляются в разделе **«Мониторинг CLI»**
 личного кабинета OpenSpeedTest.
@@ -175,12 +183,14 @@ chmod +x /config/openspeedtest-cli
 | Threads | Потоки теста | `8` |
 | Duration | Длительность download/upload (сек) | `10` |
 | Submit results | Отправка на openspeedtest.ru | `false` |
-| API key | Ключ из личного кабинета (64 hex-символа) | — |
+| API key | Ключ из личного кабинета (64 hex-символа `[0-9a-f]`) | — |
 
 > Минимальный интервал — **900 секунд (15 минут)**. Тесты нагружают канал.
 >
-> Если **Submit results** включён, но API-ключ не задан, CLI автоматически
-> выполнит тест с `--no-submit` и выведет предупреждение в лог.
+> Если **Submit results** включён, API-ключ обязателен. Пустое поле в настройках
+> сохраняет ранее введённый ключ. Чтобы удалить ключ, включите **Удалить
+> сохранённый API-ключ** и выключите отправку. Ключ не попадает в командную
+> строку процесса.
 
 При перезапуске HA **сразу показываются последние сохранённые результаты** — новый тест запускается только если истёк интервал обновления. Первый тест (если истории ещё нет) стартует через 30 секунд после загрузки.
 
@@ -198,7 +208,8 @@ chmod +x /config/openspeedtest-cli
 | `button.<имя>_run_test` | Запуск теста вручную |
 
 На сенсорах скорости, пинга и джиттера доступен атрибут `server` (имя
-выбранного сервера OpenSpeedTest).
+выбранного сервера OpenSpeedTest). `last_test` — диагностическая сущность.
+Диагностика записи интеграции (без API-ключа) доступна на странице устройства.
 
 ---
 
@@ -209,12 +220,12 @@ chmod +x /config/openspeedtest-cli
 ```yaml
 automation:
   - alias: "Низкая скорость скачивания"
-    trigger:
-      - platform: numeric_state
+    triggers:
+      - trigger: numeric_state
         entity_id: sensor.openspeedtest_cli_download
         below: 50
-    action:
-      - service: notify.mobile_app
+    actions:
+      - action: notify.mobile_app
         data:
           message: >
             Скорость скачивания: {{ states('sensor.openspeedtest_cli_download') }} Mbit/s
@@ -291,7 +302,7 @@ chmod +x /config/openspeedtest-cli
 
 ### Актуальная версия
 
-Текущий релиз — **1.3.2**. См. [Releases](https://github.com/thebestbaduser/openspeedtest-homeassistant/releases)
+Текущий релиз — **1.3.4**. См. [Releases](https://github.com/thebestbaduser/openspeedtest-homeassistant/releases)
 и [CHANGELOG.md](CHANGELOG.md).
 
 ---

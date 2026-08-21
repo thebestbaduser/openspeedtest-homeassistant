@@ -11,39 +11,53 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
 
+from .cli_file import (
+    CLI_MAX_DOWNLOAD_BYTES,
+    assert_allowed_download_url,
+    assert_install_destination,
+    validate_cli_content,
+)
 from .const import CLI_DOWNLOAD_TIMEOUT, CLI_DOWNLOAD_URL
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _normalize_cli_content(content: bytes) -> bytes:
-    """Convert Windows CRLF line endings to Unix LF."""
-    if b"\r" not in content:
-        return content
-    _LOGGER.debug("Normalizing CRLF line endings in openspeedtest-cli")
-    return content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+async def _read_limited(response: aiohttp.ClientResponse, max_bytes: int) -> bytes:
+    """Read a response body, aborting if it exceeds max_bytes."""
+    content_length = response.headers.get("Content-Length")
+    if content_length is not None:
+        try:
+            declared = int(content_length)
+        except ValueError:
+            declared = 0
+        else:
+            if declared > max_bytes:
+                raise ValueError("Downloaded file is too large to be openspeedtest-cli")
 
-
-def _validate_destination(destination: str) -> None:
-    """Reject empty or relative install destinations."""
-    if not destination or not os.path.isabs(destination):
-        raise ValueError("CLI install path must be an absolute path")
-    if destination.endswith(os.sep) or os.path.basename(destination) in ("", ".", ".."):
-        raise ValueError("CLI install path must point to a file")
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in response.content.iter_chunked(64 * 1024):
+        total += len(chunk)
+        if total > max_bytes:
+            raise ValueError("Downloaded file is too large to be openspeedtest-cli")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def async_install_cli(hass: HomeAssistant, destination: str) -> None:
     """Download openspeedtest-cli to a persistent path."""
-    _validate_destination(destination)
+    assert_install_destination(destination, hass.config.config_dir)
+    assert_allowed_download_url(CLI_DOWNLOAD_URL)
 
     session = aiohttp_client.async_get_clientsession(hass)
     timeout = aiohttp.ClientTimeout(total=CLI_DOWNLOAD_TIMEOUT)
     async with session.get(CLI_DOWNLOAD_URL, timeout=timeout) as response:
         response.raise_for_status()
-        content = _normalize_cli_content(await response.read())
-
-    if not content.startswith(b"#!"):
-        raise ValueError("Downloaded file does not look like openspeedtest-cli")
+        assert_allowed_download_url(str(response.url))
+        raw = await _read_limited(response, CLI_MAX_DOWNLOAD_BYTES)
+        if b"\r" in raw:
+            _LOGGER.debug("Normalizing CRLF line endings in openspeedtest-cli")
+        content = validate_cli_content(raw)
 
     def _write() -> None:
         directory = os.path.dirname(destination)

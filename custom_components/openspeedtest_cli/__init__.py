@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.storage import Store
 
 from .const import (
     CONFIGURATION_URL,
@@ -13,6 +17,8 @@ from .const import (
     DEVICE_NAME,
     DOMAIN,
     PLATFORMS,
+    STORAGE_VERSION,
+    get_cli_runtime_home,
 )
 from .coordinator import OpenSpeedTestCoordinator
 
@@ -48,11 +54,35 @@ async def async_setup_entry(
     return True
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate unique_id from CLI path to a single domain id."""
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(entry, unique_id=DOMAIN, version=2)
+    return True
+
+
 async def async_unload_entry(
     hass: HomeAssistant, entry: OpenSpeedTestConfigEntry
 ) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove isolated CLI HOME and cached results when the entry is deleted."""
+    runtime_home = get_cli_runtime_home(hass.config.config_dir, entry.entry_id)
+
+    def _cleanup() -> None:
+        shutil.rmtree(runtime_home, ignore_errors=True)
+        parent = os.path.dirname(runtime_home)
+        try:
+            os.rmdir(parent)
+        except OSError:
+            pass
+
+    await hass.async_add_executor_job(_cleanup)
+    store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
+    await store.async_remove()
 
 
 async def _async_reload_entry(

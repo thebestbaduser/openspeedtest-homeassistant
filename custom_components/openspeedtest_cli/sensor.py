@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import UnitOfDataRate, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -25,6 +26,8 @@ from .const import (
     SENSOR_UPLOAD,
 )
 from .coordinator import OpenSpeedTestCoordinator, SpeedtestResult
+
+PARALLEL_UPDATES = 0
 
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
@@ -68,6 +71,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         translation_key=SENSOR_LAST_TEST,
         icon="mdi:clock-outline",
         device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
@@ -105,8 +109,8 @@ class OpenSpeedTestSensor(CoordinatorEntity[OpenSpeedTestCoordinator], SensorEnt
 
     @property
     def available(self) -> bool:
-        """Return whether the sensor has data to report."""
-        return self.coordinator.data is not None
+        """Return whether the last update succeeded and data is present."""
+        return super().available and self.coordinator.data is not None
 
     @property
     def native_value(self) -> float | datetime | None:

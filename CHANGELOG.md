@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] — 2026-08-21
+
+### Security
+
+- CLI download now requires HTTPS from `openspeedtest.ru`, a size cap, and
+  the `OpenSpeedTest.ru CLI` signature. The enterprise agent is rejected.
+- API key is stored in an isolated CLI `HOME` (`config.json`, mode `600`)
+  instead of `--api-key` on the process command line.
+- Config/options API key field is a password selector; values are lowercased
+  and must be 64 hex characters.
+- Options flow can remove a stored API key; empty options override `entry.data`.
+- Isolated CLI HOME and result cache are deleted when the integration is removed.
+- Automatic CLI install must write inside the Home Assistant config directory.
+
+### Fixed
+
+- Run-test button stays available after a failed measurement.
+- Sensors follow `last_update_success` instead of masking a failed refresh
+  behind cached values.
+
+### Added
+
+- Config entry diagnostics (API key redacted).
+- Config entry v2: a single unique_id (`openspeedtest_cli`) for the service.
+
+### Changed
+
+- `iot_class` is `cloud_polling` (the CLI talks to openspeedtest.ru).
+- `last_test` is a diagnostic entity.
+- Unit tests no longer import Home Assistant and run in GitHub Actions.
+- Hassfest and `actions/checkout` are pinned by commit SHA.
+- Config/options forms include `data_description` helper text.
+- Download, ping and related sensors set `PARALLEL_UPDATES = 0`.
+- Release workflow pins `softprops/action-gh-release` by commit SHA.
+
 ## [1.3.3] — 2026-07-09
 
 ### Fixed

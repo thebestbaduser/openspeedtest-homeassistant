@@ -15,6 +15,7 @@ CONF_THREADS = "threads"
 CONF_DURATION = "duration"
 CONF_SUBMIT_RESULTS = "submit_results"
 CONF_API_KEY = "api_key"
+CONF_CLEAR_API_KEY = "clear_api_key"
 
 CLI_BINARY_NAME = "openspeedtest-cli"
 CLI_DOWNLOAD_URL = "https://openspeedtest.ru/cli/openspeedtest-cli"
@@ -40,12 +41,6 @@ PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 
 STORAGE_VERSION = 1
 
-PING_PATTERN = r"Ping:\s+([\d.]+)\s*ms"
-JITTER_PATTERN = r"Jitter:\s+([\d.]+)\s*ms"
-DOWNLOAD_PATTERN = r"Download:\s+([\d.]+)\s*Mbps"
-UPLOAD_PATTERN = r"Upload:\s+([\d.]+)\s*Mbps"
-SERVER_PATTERN = r"(?:Сервер|Server):\s+([^\r\n]+)"
-
 DEVICE_MANUFACTURER = "OpenSpeedTest.ru"
 DEVICE_MODEL = "CLI Speed Test"
 DEVICE_NAME = "OpenSpeedTest CLI"
@@ -55,3 +50,8 @@ CONFIGURATION_URL = "https://openspeedtest.ru/cli/"
 def get_recommended_cli_path(config_dir: str) -> str:
     """Return the persistent CLI path inside the Home Assistant config directory."""
     return os.path.join(config_dir, CLI_BINARY_NAME)
+
+
+def get_cli_runtime_home(config_dir: str, entry_id: str) -> str:
+    """Return the isolated HOME used for CLI config.json."""
+    return os.path.join(config_dir, f".{DOMAIN}", entry_id)

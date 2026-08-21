@@ -14,10 +14,12 @@ from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
+from .api_key import normalize_api_key, validate_submit_settings
 from .const import (
     CLI_HELP_TIMEOUT,
     CONF_API_KEY,
     CONF_BINARY_PATH,
+    CONF_CLEAR_API_KEY,
     CONF_DURATION,
     CONF_INSTALL_CLI,
     CONF_SERVER_ID,
@@ -71,6 +73,13 @@ DURATION_SELECTOR = selector.NumberSelector(
     )
 )
 
+API_KEY_SELECTOR = selector.TextSelector(
+    selector.TextSelectorConfig(
+        type=selector.TextSelectorType.PASSWORD,
+        autocomplete="off",
+    )
+)
+
 OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_BINARY_PATH): str,
@@ -79,7 +88,8 @@ OPTIONS_SCHEMA = vol.Schema(
         vol.Required(CONF_THREADS): THREADS_SELECTOR,
         vol.Required(CONF_DURATION): DURATION_SELECTOR,
         vol.Required(CONF_SUBMIT_RESULTS): bool,
-        vol.Optional(CONF_API_KEY): str,
+        vol.Optional(CONF_API_KEY): API_KEY_SELECTOR,
+        vol.Optional(CONF_CLEAR_API_KEY, default=False): bool,
     }
 )
 
@@ -98,13 +108,10 @@ def _normalize_optional_int(value: Any) -> int | None:
     return int(value)
 
 
-def _validate_submit_settings(user_input: dict[str, Any]) -> dict[str, str]:
-    """Require an API key when result submission is enabled."""
-    if user_input.get(CONF_SUBMIT_RESULTS) and not (
-        user_input.get(CONF_API_KEY) or ""
-    ).strip():
-        return {CONF_API_KEY: "api_key_required"}
-    return {}
+def _existing_api_key(entry: ConfigEntry) -> str | None:
+    """Return the stored API key from options or data."""
+    merged = {**entry.data, **entry.options}
+    return normalize_api_key(merged.get(CONF_API_KEY))
 
 
 def _suggested_options(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
@@ -127,13 +134,14 @@ def _suggested_options(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any
     else:
         suggested[CONF_SERVER_ID] = server_id
 
-    if not suggested.get(CONF_API_KEY):
-        suggested.pop(CONF_API_KEY, None)
+    # Do not prefill the password field.
+    suggested.pop(CONF_API_KEY, None)
 
     suggested.setdefault(
         CONF_BINARY_PATH, get_recommended_cli_path(hass.config.config_dir)
     )
     suggested.setdefault(CONF_SUBMIT_RESULTS, False)
+    suggested[CONF_CLEAR_API_KEY] = False
 
     return suggested
 
@@ -161,6 +169,7 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
             "--help",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.DEVNULL,
         )
     except FileNotFoundError:
         errors[CONF_BINARY_PATH] = "not_found"
@@ -195,7 +204,7 @@ async def _validate_binary(hass: HomeAssistant, binary_path: str) -> dict[str, s
 class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for OpenSpeedTest CLI."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -206,14 +215,17 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             binary_path = user_input[CONF_BINARY_PATH]
-            errors.update(_validate_submit_settings(user_input))
+            errors.update(validate_submit_settings(user_input))
 
             if not errors and user_input.get(CONF_INSTALL_CLI):
                 try:
                     await async_install_cli(self.hass, binary_path)
-                except ValueError:
+                except ValueError as err:
                     _LOGGER.exception("Invalid OpenSpeedTest CLI download")
-                    errors["base"] = "invalid_download"
+                    if "inside the Home Assistant config directory" in str(err):
+                        errors[CONF_BINARY_PATH] = "not_in_config"
+                    else:
+                        errors["base"] = "invalid_download"
                 except Exception:
                     _LOGGER.exception("Failed to install OpenSpeedTest CLI")
                     errors["base"] = "download_failed"
@@ -222,9 +234,9 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors = await _validate_binary(self.hass, binary_path)
 
             if not errors:
-                await self.async_set_unique_id(binary_path)
+                await self.async_set_unique_id(DOMAIN)
                 self._abort_if_unique_id_configured()
-                api_key = (user_input.get(CONF_API_KEY) or "").strip() or None
+                api_key = normalize_api_key(user_input.get(CONF_API_KEY))
                 return self.async_create_entry(
                     title="OpenSpeedTest CLI",
                     data={
@@ -262,7 +274,7 @@ class OpenSpeedTestConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_THREADS, default=DEFAULT_THREADS): THREADS_SELECTOR,
                 vol.Optional(CONF_DURATION, default=DEFAULT_DURATION): DURATION_SELECTOR,
                 vol.Optional(CONF_SUBMIT_RESULTS, default=False): bool,
-                vol.Optional(CONF_API_KEY): str,
+                vol.Optional(CONF_API_KEY): API_KEY_SELECTOR,
             }
         )
 
@@ -290,7 +302,10 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
-            errors = _validate_submit_settings(user_input)
+            existing_key = _existing_api_key(self.config_entry)
+            errors = validate_submit_settings(
+                user_input, existing_api_key=existing_key
+            )
             if not errors:
                 errors = await _validate_binary(
                     self.hass, user_input[CONF_BINARY_PATH]
@@ -304,6 +319,12 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
                     ),
                     errors=errors,
                 )
+
+            new_key = normalize_api_key(user_input.get(CONF_API_KEY))
+            if user_input.get(CONF_CLEAR_API_KEY) and not new_key:
+                stored_key = ""
+            else:
+                stored_key = new_key or existing_key or ""
 
             options = {
                 CONF_BINARY_PATH: user_input[CONF_BINARY_PATH],
@@ -320,14 +341,12 @@ class OpenSpeedTestOptionsFlowHandler(OptionsFlow):
                     user_input.get(CONF_SERVER_ID)
                 ),
                 CONF_SUBMIT_RESULTS: user_input.get(CONF_SUBMIT_RESULTS, False),
-                CONF_API_KEY: (user_input.get(CONF_API_KEY) or "").strip() or None,
+                # Empty string overrides a key left in entry.data.
+                CONF_API_KEY: stored_key,
             }
 
             if options[CONF_SERVER_ID] is None:
                 options.pop(CONF_SERVER_ID)
-
-            if options[CONF_API_KEY] is None:
-                options.pop(CONF_API_KEY)
 
             return self.async_create_entry(title="", data=options)
 
