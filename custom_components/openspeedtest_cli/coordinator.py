@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
-import re
+import os
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,8 +14,8 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util import dt as dt_util
 
+from .api_key import normalize_api_key, write_cli_runtime_config
 from .const import (
     CONF_API_KEY,
     CONF_BINARY_PATH,
@@ -28,135 +27,30 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_THREADS,
     DOMAIN,
-    DOWNLOAD_PATTERN,
-    JITTER_PATTERN,
     MIN_SCAN_INTERVAL,
     MIN_SCHEDULE_DELAY,
-    PING_PATTERN,
-    SERVER_PATTERN,
     STARTUP_TEST_DELAY,
     STORAGE_VERSION,
-    UPLOAD_PATTERN,
     get_recommended_cli_path,
+)
+from .parser import (
+    SpeedtestResult,
+    parse_cli_output,
+    redact_command,
+    result_from_dict,
+    result_to_dict,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-
-@dataclass(slots=True)
-class SpeedtestResult:
-    """Parsed speed test result."""
-
-    ping: float
-    jitter: float
-    download: float
-    upload: float
-    server: str
-    last_run: datetime
-
-
-def _last_numeric_match(pattern: str, output: str) -> float | None:
-    """Return the last numeric capture from output.
-
-    The CLI overwrites progress lines with \\r, so stdout may contain several
-    intermediate values before the final measurement.
-    """
-    matches = re.findall(pattern, output, flags=re.IGNORECASE)
-    if not matches:
-        return None
-    return float(matches[-1])
-
-
-def parse_cli_output(output: str) -> SpeedtestResult:
-    """Parse OpenSpeedTest CLI stdout into structured data."""
-    ping = _last_numeric_match(PING_PATTERN, output)
-    jitter = _last_numeric_match(JITTER_PATTERN, output)
-    download = _last_numeric_match(DOWNLOAD_PATTERN, output)
-    upload = _last_numeric_match(UPLOAD_PATTERN, output)
-    server_match = re.search(SERVER_PATTERN, output)
-
-    missing = [
-        name
-        for name, value in (
-            ("ping", ping),
-            ("jitter", jitter),
-            ("download", download),
-            ("upload", upload),
-        )
-        if value is None
-    ]
-    if missing or ping is None or jitter is None or download is None or upload is None:
-        raise ValueError(
-            f"Failed to parse CLI output, missing fields: {', '.join(missing)}"
-        )
-
-    server = server_match.group(1).strip() if server_match else "unknown"
-
-    result = SpeedtestResult(
-        ping=ping,
-        jitter=jitter,
-        download=download,
-        upload=upload,
-        server=server,
-        last_run=dt_util.utcnow(),
-    )
-
-    if result.download == 0 and result.upload == 0:
-        _LOGGER.warning(
-            "OpenSpeedTest CLI (%s): download and upload are both 0 Mbps. "
-            "Check network access from Home Assistant to the test server",
-            server,
-        )
-        _LOGGER.debug("CLI stdout for zero-speed result on server %s:\n%s", server, output)
-
-    return result
-
-
-def result_to_dict(result: SpeedtestResult) -> dict[str, Any]:
-    """Serialize a speed test result for persistent storage."""
-    return {
-        "ping": result.ping,
-        "jitter": result.jitter,
-        "download": result.download,
-        "upload": result.upload,
-        "server": result.server,
-        "last_run": result.last_run.isoformat(),
-    }
-
-
-def result_from_dict(data: dict[str, Any]) -> SpeedtestResult:
-    """Restore a speed test result from persistent storage."""
-    last_run = dt_util.parse_datetime(data["last_run"])
-    if last_run is None:
-        raise ValueError("Invalid last_run timestamp in cache")
-    if last_run.tzinfo is None:
-        last_run = last_run.replace(tzinfo=dt_util.UTC)
-
-    return SpeedtestResult(
-        ping=float(data["ping"]),
-        jitter=float(data["jitter"]),
-        download=float(data["download"]),
-        upload=float(data["upload"]),
-        server=str(data["server"]),
-        last_run=last_run,
-    )
-
-
-def _redact_command(command: list[str]) -> str:
-    """Return a log-safe representation of the CLI command."""
-    redacted: list[str] = []
-    skip_next = False
-    for part in command:
-        if skip_next:
-            redacted.append("***")
-            skip_next = False
-            continue
-        if part == "--api-key":
-            redacted.append(part)
-            skip_next = True
-            continue
-        redacted.append(part)
-    return " ".join(redacted)
+__all__ = [
+    "OpenSpeedTestCoordinator",
+    "SpeedtestResult",
+    "parse_cli_output",
+    "result_from_dict",
+    "result_to_dict",
+    "redact_command",
+]
 
 
 class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
@@ -182,18 +76,29 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             config_entry=entry,
         )
 
+    def _merged_config(self) -> dict[str, Any]:
+        """Return config entry data overlaid with options."""
+        return {**self.config_entry.data, **self.config_entry.options}
+
+    def _cli_runtime_home(self) -> str:
+        """Return an isolated HOME directory for CLI config.json."""
+        return os.path.join(
+            self.hass.config.config_dir,
+            f".{DOMAIN}",
+            self.config_entry.entry_id,
+        )
+
     @property
     def scan_interval_seconds(self) -> int:
         """Return configured scan interval in seconds."""
-        data = {**self.config_entry.data, **self.config_entry.options}
-        interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        interval = self._merged_config().get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         return max(int(interval), MIN_SCAN_INTERVAL)
 
     def needs_refresh(self) -> bool:
         """Return True when a new speed test should be run."""
         if self.data is None:
             return True
-        age = (dt_util.utcnow() - self.data.last_run).total_seconds()
+        age = (datetime.now(timezone.utc) - self.data.last_run).total_seconds()
         return age >= self.scan_interval_seconds
 
     def seconds_until_next_test(self) -> int:
@@ -201,7 +106,7 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
         if self.data is None:
             return 0
         remaining = self.scan_interval_seconds - (
-            dt_util.utcnow() - self.data.last_run
+            datetime.now(timezone.utc) - self.data.last_run
         ).total_seconds()
         return max(0, int(remaining))
 
@@ -255,8 +160,12 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             self.async_start_scheduler()
 
     def _build_command(self) -> list[str]:
-        """Build CLI command from config entry."""
-        data = {**self.config_entry.data, **self.config_entry.options}
+        """Build CLI command from config entry.
+
+        The API key is never passed on the command line. It is written to
+        config.json under an isolated HOME instead.
+        """
+        data = self._merged_config()
         binary = data.get(
             CONF_BINARY_PATH,
             get_recommended_cli_path(self.hass.config.config_dir),
@@ -272,16 +181,11 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
         threads = int(data.get(CONF_THREADS, DEFAULT_THREADS))
         duration = int(data.get(CONF_DURATION, DEFAULT_DURATION))
         command.extend(["--threads", str(threads), "--duration", str(duration)])
-
-        if api_key := data.get(CONF_API_KEY):
-            command.extend(["--api-key", api_key])
-
         return command
 
     def _calculate_timeout(self) -> int:
         """Calculate subprocess timeout based on test duration."""
-        data = {**self.config_entry.data, **self.config_entry.options}
-        duration = int(data.get(CONF_DURATION, DEFAULT_DURATION))
+        duration = int(self._merged_config().get(CONF_DURATION, DEFAULT_DURATION))
         return max(180, duration * 4 + 120)
 
     async def _async_update_data(self) -> SpeedtestResult:
@@ -291,15 +195,31 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
 
     async def _async_run_speedtest(self) -> SpeedtestResult:
         """Execute openspeedtest-cli and parse its output."""
+        data = self._merged_config()
         command = self._build_command()
         timeout = self._calculate_timeout()
-        _LOGGER.debug("Running OpenSpeedTest CLI: %s", _redact_command(command))
+        runtime_home = self._cli_runtime_home()
+        api_key = (
+            normalize_api_key(data.get(CONF_API_KEY))
+            if data.get(CONF_SUBMIT_RESULTS, False)
+            else None
+        )
+        env = os.environ.copy()
+        env["HOME"] = runtime_home
+
+        await self.hass.async_add_executor_job(
+            write_cli_runtime_config, runtime_home, api_key
+        )
+
+        _LOGGER.debug("Running OpenSpeedTest CLI: %s", redact_command(command))
 
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                stdin=asyncio.subprocess.DEVNULL,
+                env=env,
             )
         except FileNotFoundError as err:
             raise UpdateFailed(
@@ -337,6 +257,18 @@ class OpenSpeedTestCoordinator(DataUpdateCoordinator[SpeedtestResult]):
             _LOGGER.debug("CLI stdout:\n%s", stdout)
             _LOGGER.debug("CLI stderr:\n%s", stderr)
             raise UpdateFailed(str(err)) from err
+
+        if result.download == 0 and result.upload == 0:
+            _LOGGER.warning(
+                "OpenSpeedTest CLI (%s): download and upload are both 0 Mbps. "
+                "Check network access from Home Assistant to the test server",
+                result.server,
+            )
+            _LOGGER.debug(
+                "CLI stdout for zero-speed result on server %s:\n%s",
+                result.server,
+                stdout,
+            )
 
         await self._store.async_save(result_to_dict(result))
         return result

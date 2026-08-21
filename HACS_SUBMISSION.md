@@ -65,12 +65,12 @@ After pushing a `v*` tag, the `Release` workflow creates a draft release
 with auto-generated notes. To do it manually:
 
 1. <https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/new>
-2. Choose the tag (e.g. `v1.3.2`)
-3. Set the title to `v1.3.2`
+2. Choose the tag (e.g. `v1.3.4`)
+3. Set the title to `v1.3.4`
 4. Use the contents of `CHANGELOG.md` for the body
 5. Click **Publish release**
 
-**Current release:** <https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.2>
+**Current release:** <https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.4>
 
 ## 4. Submit the PR to `hacs/default`
 
@@ -86,7 +86,7 @@ with auto-generated notes. To do it manually:
 4. Open a PR. Fill in the template:
 
    - **Link to current release:**
-     `https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.2`
+     `https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.4`
    - **Link to successful HACS action run:**
      <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/28257954430/job/83725742456>
    - **Link to successful Hassfest run:**

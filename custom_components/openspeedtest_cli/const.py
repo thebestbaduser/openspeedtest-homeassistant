@@ -40,12 +40,6 @@ PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 
 STORAGE_VERSION = 1
 
-PING_PATTERN = r"Ping:\s+([\d.]+)\s*ms"
-JITTER_PATTERN = r"Jitter:\s+([\d.]+)\s*ms"
-DOWNLOAD_PATTERN = r"Download:\s+([\d.]+)\s*Mbps"
-UPLOAD_PATTERN = r"Upload:\s+([\d.]+)\s*Mbps"
-SERVER_PATTERN = r"(?:Сервер|Server):\s+([^\r\n]+)"
-
 DEVICE_MANUFACTURER = "OpenSpeedTest.ru"
 DEVICE_MODEL = "CLI Speed Test"
 DEVICE_NAME = "OpenSpeedTest CLI"

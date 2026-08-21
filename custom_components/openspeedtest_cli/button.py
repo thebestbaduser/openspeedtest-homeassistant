@@ -38,6 +38,11 @@ class OpenSpeedTestRunButton(CoordinatorEntity[OpenSpeedTestCoordinator], Button
         self._attr_unique_id = f"{entry.entry_id}_run_test"
         self._attr_device_info = build_device_info(entry)
 
+    @property
+    def available(self) -> bool:
+        """Keep the button usable after a failed speed test."""
+        return True
+
     async def async_press(self) -> None:
-        """Handle the button press."""
-        await self.coordinator.async_refresh()
+        """Handle the button press without blocking the UI on a long test."""
+        self.hass.async_create_task(self.coordinator.async_request_refresh())
