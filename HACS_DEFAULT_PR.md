@@ -1,9 +1,9 @@
 # HACS default PR — copy-paste after Validate is green
 
 Open the PR from a **personal** fork of `hacs/default`, not from an
-organisation. Fill in the `<>` links from the **green** Validate run on
-`main` for tag `v1.3.5` — do not reuse the old `v1.3.4` / run
-`28257954430` links.
+organisation. The links below are from Validate run
+[32504777840](https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840)
+on `main` (`7a4c82d`), which is also tag `v1.3.5`.
 
 ## 1. Fork and branch
 
@@ -41,9 +41,8 @@ git push -u origin add-openspeedtest-homeassistant
 
 ## 4. PR body
 
-Replace every `<>` with a real URL before submitting. Tick the boxes
-only after the linked jobs are green and `v1.3.5` is a published
-GitHub **release**.
+Copy this body as-is. Tick the boxes only if `v1.3.5` is a published
+GitHub **release** (not just a tag).
 
 ```markdown
 ## Checklist
@@ -59,9 +58,9 @@ GitHub **release**.
 
 Link to current release: https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.5
 
-Link to successful HACS action (without the `ignore` key): <>
+Link to successful HACS action (without the `ignore` key): https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840/job/96842367520
 
-Link to successful hassfest action (if integration): <>
+Link to successful hassfest action (if integration): https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840/job/96842367821
 ```
 
 5. Mark the PR **Ready for review**.

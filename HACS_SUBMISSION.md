@@ -51,32 +51,24 @@ are repository settings, not files):
 
 ## Sequence
 
-### 1. Land 1.3.5 and wait for Validate
+### 1. Validate on `main` — done for 1.3.5
 
-Merge this branch to `main`. Open
-<https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/workflows/validate.yml>
-and wait until the latest run on `main` is green for:
+Green Validate run on `7a4c82d` (tag `v1.3.5`):
 
-- HACS validation
-- Hassfest validation
-- Unit tests
+- Workflow: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840>
+- HACS validation (no `ignore`): <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840/job/96842367520>
+- Hassfest validation: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840/job/96842367821>
+- Unit tests: <https://github.com/thebestbaduser/openspeedtest-homeassistant/actions/runs/32504777840/job/96842367796>
 
-Copy the job URLs. Do **not** proceed on a failing or ignored run.
+If `main` moves again, re-run Validate and cut a **new** release before
+opening or updating the `hacs/default` PR. Do **not** reuse a red run.
 
-### 2. Publish GitHub release `v1.3.5`
+### 2. GitHub release `v1.3.5`
 
-After Validate is green on `main`:
-
-```bash
-git tag v1.3.5
-git push origin v1.3.5
-```
-
-The `Release` workflow publishes the GitHub release. Confirm:
+Tag `v1.3.5` was pushed after that green run. Confirm the **release**
+(not only the tag) exists:
 
 <https://github.com/thebestbaduser/openspeedtest-homeassistant/releases/tag/v1.3.5>
-
-A tag without a published **release** is not enough.
 
 ### 3. Open the PR on `hacs/default` (manual, personal account)
 
